@@ -1,0 +1,5 @@
+plant_id,name,city,state,zip,lat,long
+1,Plant A,Chicago,IL,60601,41.8859,-87.6248
+2,Plant B,Dallas,TX,75201,32.7877,-96.8
+3,Plant C,Denver,CO,80201,39.7506,-104.9898
+4,Plant D,Atlanta,GA,30301,33.6488,-84.3915
