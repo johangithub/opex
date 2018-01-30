@@ -56,7 +56,7 @@ function ready(error, demand, plants, products, setup, customers, capacity, dist
         for (i=1;i<6;i++){
             demand_list[i] = data.demand.filter(d=>+d.product_id == i).map(d => +d.demand)
         }
-        var dist_matrix = []
+        dist_matrix = []
         for (i=1;i<51;i++){
             var temp = data.dist_c2c.filter(d=>+d.customer_from==i).sort((a,b)=>+a.customer_to > +b.customer_to).map(d => +d.dist <= 500 ? 1 : 0)
             dist_matrix.push(temp)
@@ -83,13 +83,12 @@ function ready(error, demand, plants, products, setup, customers, capacity, dist
             demand_list[5][d-1] = 0
         });
 
-        console.log(demand_list[1])
         dist=math.matrix(dist_matrix)
         var demand_coverage = []
         for (let i=0;i<50;i++){
             demand_coverage.push(math.dotMultiply(demand_list[1],dist_matrix[i]))
         }
-        
+
         // demand=math.matrix([demand_list[1],demand_list[2],demand_list[3],demand_list[4],demand_list[5]])
         // warehouse=math.transpose(Array(50).fill(1))
         // B = math.multiply(dist,warehouse)
@@ -98,6 +97,93 @@ function ready(error, demand, plants, products, setup, customers, capacity, dist
         // console.log(b._size, A._size)
         // a=numeric.solveLP(Array(50).fill(1),A, -1*b)
         // console.log(a)
+        function bitwise_compare(a,b){
+            for(let i=0;i<a.length;i++){
+                if ((a[i]||b[i]) != a[i]){
+                    return false
+                }
+            }
+            //Dominates
+            if (_.sum(a) >= _.sum(b)){
+                return true
+            } else {
+                return false
+            }
+        }
+        dist_ind = dist_matrix.map(row => row.map((d,i) => (i+1)).filter(ind=>row[ind-1]==1))
+        dist_set = {}
+        dist_ind.forEach((d,i)=>{
+            dist_set[(i+1).toString()] = d
+        })
+        count=0
+        cluster = []
+        same_list = new Set()
+        for (let i=1;i<50;i++){
+            for (let j=i+1;j<51;j++){
+                if ((_.isEqual(_.intersection(dist_set[i],dist_set[j]),dist_set[i])) || (_.isEqual(_.intersection(dist_set[i],dist_set[j]), dist_set[j]))){
+                    if (_.isEqual(dist_set[i], dist_set[j])){
+                        if (same_list.has(i)){
+                            var ind = cluster.findIndex(d=>d.has(i))
+                            cluster[ind].add(j)
+                        } else if (same_list.has(j)){
+                            var ind = cluster.findIndex(d=>d.has(j))
+                            cluster[ind].add(i)
+
+                        //Never seen
+                        } else {
+                            cluster.push(new Set([i, j]))
+                        }
+                        same_list.add(i)
+                        same_list.add(j)
+
+                        // console.log(`${i} is the same as ${j}`)
+
+                    } else if (dist_set[i].length < dist_set[j].length){
+                        console.log(`${j} strictly dominates ${i}`)
+                    } else if (dist_set[i].length > dist_set[j].length){
+                        console.log(`${i} strictly dominates ${j}`)
+                    }
+                }
+            }
+        }
+        cluster.forEach((d,i)=>{
+            console.log(i, d)
+        })
+        subset = {}
+        strictly_dominated = []
+        for (let i=0; i<50;i++){
+            var temp = []
+            for (let j=0; j<50; j++){
+                if (bitwise_compare(dist_matrix[i], dist_matrix[j])){
+                    temp.push(j+1)
+                }
+            }
+            subset[i] = temp
+            // console.log(`Customer ${i+1}: ${subset[i]}`)
+            strictly_dominated = _.concat(strictly_dominated,temp)
+        }
+        subset_out = {}
+        accounted_for = []
+        for (let i = 0; i<49;i++){
+            for (let j=i+1;j<50;j++){   
+                if ((_.union(subset[i],subset[j]).length == subset[i].length) && (subset[i].length ==subset[j].length) && (i != j) && (!accounted_for.includes(j+1))){
+                    accounted_for.push(j+1)
+                    if ((i+1) in subset_out){
+                        subset_out[i+1].push(j+1)
+                    } else {
+                        subset_out[i+1] = [i+1, j+1]
+                    }
+                    // console.log(i+1, j+1)
+                }
+            }
+        }
+        // strictly_dominated_set = new Set(strictly_dominated)
+        // for (let i=0;i<50;i++){
+        //     if (!strictly_dominated_set.has(i+1)){
+        //     }
+        // }
+
+        
 
     }
     demand_covered()
