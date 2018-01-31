@@ -62,26 +62,26 @@ function ready(error, demand, plants, products, setup, customers, capacity, dist
             dist_matrix.push(temp)
         }
 
-        // //Product 1: 10, 19, 20, 27, 31
-        // [10,19,20,27,31].forEach(d=>{
-        //     demand_list[1][d-1] = 0
-        // });
+        //Product 1: 10, 19, 20, 27, 31
+        [10,19,20,27,31].forEach(d=>{
+            demand_list[1][d-1] = 0
+        });
 
-        // [5,6,16,17,18,30,34,41,48,49].forEach(d=>{
-        //     demand_list[2][d-1] = 0
-        // });
+        [5,6,16,17,18,30,34,41,48,49].forEach(d=>{
+            demand_list[2][d-1] = 0
+        });
 
-        // [14,30,32,35].forEach(d=>{
-        //     demand_list[3][d-1] = 0
-        // });
+        [14,30,32,35].forEach(d=>{
+            demand_list[3][d-1] = 0
+        });
 
-        // [2,28,36].forEach(d=>{
-        //     demand_list[4][d-1] = 0
-        // });
+        [2,28,36].forEach(d=>{
+            demand_list[4][d-1] = 0
+        });
 
-        // [2,28,36].forEach(d=>{
-        //     demand_list[5][d-1] = 0
-        // });
+        [2,28,36].forEach(d=>{
+            demand_list[5][d-1] = 0
+        });
 
         dist=math.matrix(dist_matrix)
         var demand_coverage = []
@@ -144,7 +144,7 @@ function ready(error, demand, plants, products, setup, customers, capacity, dist
         var covered = math.multiply(dist_matrix, warehouses).map(d=>d>0 ? 1 : 0)
         var output = math.multiply(demand, covered)._data
         var output_percent = output.map((d,i)=>(d/total_demand(i+1)))
-        return output_percent
+        return [output, output_percent]
     }
 
     function getPermutations(array_in, size) {
@@ -169,11 +169,11 @@ function ready(error, demand, plants, products, setup, customers, capacity, dist
     function iterate_combinations(){
         //We should only consider
         //[8, 35, 27, {4|25|26|33|39}, 12, 27, 14, 30, {5|6|16|17|34|41|49},
-        //{7|24|50}, 31, {13|47}]
+        //{7|24|50}, 31, {13|47}, {2|28|36|43}]
         //Because others are strictly dominated
         // Of the identical sets, calculating mean distance shows which would be ideal
         //So only consider the following
-        possible_customers = [8,35,28,25,12,27,14,30,5,24,31,47]
+        possible_customers = [8,35,25,12,27,14,30,5,24,31,13,2]
         for (i=4;i<5;i++){
             var permut = getPermutations(possible_customers, i)
             permut.forEach(warehouse=>{
@@ -182,9 +182,11 @@ function ready(error, demand, plants, products, setup, customers, capacity, dist
                     warehouses[i-1]=1
                 });
 
-                var output = calculate_demand(warehouses)
-                if (output.filter(d=>d>.8).length == 5){
-                    console.log(warehouse, output)
+                var target_percentage = [.7115, .5732, .5257, .752, .7429]
+                var output = calculate_demand(warehouses)[0]
+                var output_percent = calculate_demand(warehouses)[1]
+                if (output_percent.filter((d,i)=>d>=target_percentage[i]).length == 5 && d3.sum(output)>338000){
+                    console.log(warehouse, d3.sum(output), output_percent)
                 }
 
             });
@@ -195,19 +197,48 @@ function ready(error, demand, plants, products, setup, customers, capacity, dist
     function calculate_mean_distance(customer_id){
         return d3.mean(data.dist_c2c.filter(d=> (+d.customer_from == customer_id) && (+d.dist <= 500)).map(d=>+d.dist))
     }
+    function calculate_demand_cost(customer_id){
+        customers_to_be_served = data.dist_c2c.filter(d=> (+d.customer_from == customer_id) && (+d.dist <= 500)).map(d=>d.customer_to)
+        var weighted_cost = 0
+        customers_to_be_served.forEach(customer =>{
+            demand_served = d3.sum(data.demand.filter(d=>d.customer_id==customer).map(d=>d.demand))
+            distance = data.dist_c2c.filter(d=> (d.customer_to==customer) && (d.customer_from ==customer_id)).map(d=>+d.dist)[0]
+            weighted_cost += Math.ceil(demand_served/10)* distance * 2 
+        })
+        return weighted_cost
+    // cost is $2 per mile per truck, in 10 tons. Rounding up for 10, we get the number of trucks required and miles
+    // Math.ceil(data.demand[0].demand/10) * distance
+    // console.log(Math.ceil(data.demand[0].demand/10))
+
+    }
+
     function decide_city_within_cluster(){
         clusters.forEach((cluster, i)=>{
             var min_customer = -1
-            var mean_d = 1000
+            var cost = 1e10
             cluster.forEach(customer=>{
-                if (mean_d > calculate_mean_distance(customer)){
+                if (cost > calculate_demand_cost(customer)){
                     min_customer = customer
-                    mean_d = calculate_mean_distance(customer)
+                    cost = calculate_demand_cost(customer)
                 }
             })
+        // console.log(cluster, min_customer)
         })
     }
     decide_city_within_cluster()
+
+    function simulate_fulfillment(){
+        //4 quarters. 5 Products. 4 Plants. Sort based on distance and fill the closest ones first.
+        for (let product_id = 1;product_id<6;product_id++){
+            if (product_id <5){
+                var capacity = +data.capacity.filter(d=>d.plant_id == product_id && d.product_id == product_id && d.plant_id==product_id)[0].capacity           
+            } else {
+                var capacity = +data.capacity.filter(d=>d.plant_id == 4 && d.product_id == product_id)[0].capacity           
+            }
+            console.log(capacity)
+        }
+    }
+    simulate_fulfillment()
     var svgWidth = 1400
     var svgHeight = 500
 
@@ -397,31 +428,49 @@ function ready(error, demand, plants, products, setup, customers, capacity, dist
             .attr("cy", function(d){return projection([+d.long, +d.lat])[1]})
             .attr("r", 3)
             .style("fill", "steelblue")
+            .attr("id", d=>"circle_"+d.customer_id)
             .on('mouseover', tip_circle.show)
             .on('mouseout', tip_circle.hide)
 
-        svg2.selectAll("text")
+        svg2.selectAll("text.plant")
             .data(data.plants)
             .enter()
             .append("text")
+            .attr("class", "plant")
             .attr("x", function(d){return projection([+d.long, +d.lat])[0]})
             .attr("y", function(d){return projection([+d.long, +d.lat])[1]})
             .text(function(d){return d.plant_id})
             .style("cursor", "default")
             .style("font-size", "10px")
+
         svg2.call(tip_circle)
+
+        svg2.selectAll("text.cluster")
+            .data(clusters)
+            .enter()
+            .append("text")
+            .attr("class", "cluster")
+            .attr("x", 0)
+            .attr("y", (d,i)=>i*50+200)
+            .text((d,i)=>"Cluster "+(i+1))
+            .style("cursor", "pointer")
+            .on("mouseover",d=> identifyClusters(d))
+            .on("mouseout", clearAll)
+
+        function identifyClusters(d){
+            d.forEach(i =>{
+                d3.selectAll("#circle_"+i)
+                  .style("fill", "brown")
+                  .attr("r", 10)
+                  .attr("opacity", 0.5)
+            })
+        }
+        function clearAll(){
+            d3.selectAll("circle")
+                .style("fill", "steelblue")
+                .attr("r", 3)
+                .attr("opacity", 1)
+        }
     })
-
-    // svg2.selectAll("circle")
-    //     .data(data.customers)
-    //     .enter()
-    //     .append("circle")
-    //     .attr("cx", function(d){return x2(d.long)})
-    //     .attr("cy", function(d){return y2(d.lat)})
-    //     .attr("r", 3)
-    //     .style("fill", "steelblue")
-    //     .on('mouseover', tip_circle.show)
-    //     .on('mouseout', tip_circle.hide)
-
 
 }
