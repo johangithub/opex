@@ -52,7 +52,7 @@ function ready(error, demand, plants, products, setup, customers, capacity, dist
 
     // Base
     function demand_covered(){
-        var demand_list = {}
+        demand_list = {}
         for (i=1;i<6;i++){
             demand_list[i] = data.demand.filter(d=>+d.product_id == i).map(d => +d.demand)
         }
@@ -62,26 +62,26 @@ function ready(error, demand, plants, products, setup, customers, capacity, dist
             dist_matrix.push(temp)
         }
 
-        //Product 1: 10, 19, 20, 27, 31
-        [10,19,20,27,31].forEach(d=>{
-            demand_list[1][d-1] = 0
-        });
+        // //Product 1: 10, 19, 20, 27, 31
+        // [10,19,20,27,31].forEach(d=>{
+        //     demand_list[1][d-1] = 0
+        // });
 
-        [5,6,16,17,18,30,34,41,48,49].forEach(d=>{
-            demand_list[2][d-1] = 0
-        });
+        // [5,6,16,17,18,30,34,41,48,49].forEach(d=>{
+        //     demand_list[2][d-1] = 0
+        // });
 
-        [14,30,32,35].forEach(d=>{
-            demand_list[3][d-1] = 0
-        });
+        // [14,30,32,35].forEach(d=>{
+        //     demand_list[3][d-1] = 0
+        // });
 
-        [2,28,36].forEach(d=>{
-            demand_list[4][d-1] = 0
-        });
+        // [2,28,36].forEach(d=>{
+        //     demand_list[4][d-1] = 0
+        // });
 
-        [2,28,36].forEach(d=>{
-            demand_list[5][d-1] = 0
-        });
+        // [2,28,36].forEach(d=>{
+        //     demand_list[5][d-1] = 0
+        // });
 
         dist=math.matrix(dist_matrix)
         var demand_coverage = []
@@ -97,41 +97,28 @@ function ready(error, demand, plants, products, setup, customers, capacity, dist
         // console.log(b._size, A._size)
         // a=numeric.solveLP(Array(50).fill(1),A, -1*b)
         // console.log(a)
-        function bitwise_compare(a,b){
-            for(let i=0;i<a.length;i++){
-                if ((a[i]||b[i]) != a[i]){
-                    return false
-                }
-            }
-            //Dominates
-            if (_.sum(a) >= _.sum(b)){
-                return true
-            } else {
-                return false
-            }
-        }
         dist_ind = dist_matrix.map(row => row.map((d,i) => (i+1)).filter(ind=>row[ind-1]==1))
         dist_set = {}
         dist_ind.forEach((d,i)=>{
             dist_set[(i+1).toString()] = d
         })
         count=0
-        cluster = []
+        clusters = []
         same_list = new Set()
         for (let i=1;i<50;i++){
             for (let j=i+1;j<51;j++){
                 if ((_.isEqual(_.intersection(dist_set[i],dist_set[j]),dist_set[i])) || (_.isEqual(_.intersection(dist_set[i],dist_set[j]), dist_set[j]))){
                     if (_.isEqual(dist_set[i], dist_set[j])){
                         if (same_list.has(i)){
-                            var ind = cluster.findIndex(d=>d.has(i))
-                            cluster[ind].add(j)
+                            var ind = clusters.findIndex(d=>d.has(i))
+                            clusters[ind].add(j)
                         } else if (same_list.has(j)){
-                            var ind = cluster.findIndex(d=>d.has(j))
-                            cluster[ind].add(i)
+                            var ind = clusters.findIndex(d=>d.has(j))
+                            clusters[ind].add(i)
 
                         //Never seen
                         } else {
-                            cluster.push(new Set([i, j]))
+                            clusters.push(new Set([i, j]))
                         }
                         same_list.add(i)
                         same_list.add(j)
@@ -139,82 +126,88 @@ function ready(error, demand, plants, products, setup, customers, capacity, dist
                         // console.log(`${i} is the same as ${j}`)
 
                     } else if (dist_set[i].length < dist_set[j].length){
-                        console.log(`${j} strictly dominates ${i}`)
+                        // console.log(`${j} strictly dominates ${i}`)
                     } else if (dist_set[i].length > dist_set[j].length){
-                        console.log(`${i} strictly dominates ${j}`)
+                        // console.log(`${i} strictly dominates ${j}`)
                     }
                 }
             }
         }
-        cluster.forEach((d,i)=>{
+        clusters.forEach((d,i)=>{
             console.log(i, d)
         })
-        subset = {}
-        strictly_dominated = []
-        for (let i=0; i<50;i++){
-            var temp = []
-            for (let j=0; j<50; j++){
-                if (bitwise_compare(dist_matrix[i], dist_matrix[j])){
-                    temp.push(j+1)
-                }
-            }
-            subset[i] = temp
-            // console.log(`Customer ${i+1}: ${subset[i]}`)
-            strictly_dominated = _.concat(strictly_dominated,temp)
-        }
-        subset_out = {}
-        accounted_for = []
-        for (let i = 0; i<49;i++){
-            for (let j=i+1;j<50;j++){   
-                if ((_.union(subset[i],subset[j]).length == subset[i].length) && (subset[i].length ==subset[j].length) && (i != j) && (!accounted_for.includes(j+1))){
-                    accounted_for.push(j+1)
-                    if ((i+1) in subset_out){
-                        subset_out[i+1].push(j+1)
-                    } else {
-                        subset_out[i+1] = [i+1, j+1]
-                    }
-                    // console.log(i+1, j+1)
-                }
-            }
-        }
-        // strictly_dominated_set = new Set(strictly_dominated)
-        // for (let i=0;i<50;i++){
-        //     if (!strictly_dominated_set.has(i+1)){
-        //     }
-        // }
-
-        
-
     }
     demand_covered()
-    //
-    // function triangulate(plant_id){
-    //     var dist = data.dist_p2c.filter(d => d.plant_id == plant_id)
-    //     dist.forEach(d => {
-    //         d.lat = data.customers.filter(cust => cust.customer_id == d.customer_id)[0].lat
-    //         d.long = data.customers.filter(cust => cust.customer_id == d.customer_id)[0].long
-    //         d.dist_deg = mile_2_deg(d.dist)
-    //     })
-    //     function mile_2_deg(dist){
-    //         return dist / 1.60934 / 85
-    //     }
-    //     console.log(dist[0].dist_deg)
-    //     var A = math.matrix([
-    //     [1,1, -2*dist[0].long, -2*dist[0].lat],
-    //     [1,1, -2*dist[1].long, -2*dist[1].lat],
-    //     [1,1, -2*dist[2].long, -2*dist[2].lat]
-    //     ])
-    //     var b = math.matrix([[dist[0].dist_deg ** 2 - dist[0].long ** 2 - dist[0].lat ** 2],
-    //     [dist[1].dist_deg ** 2 - dist[1].long ** 2 - dist[1].lat ** 2],
-    //     [dist[2].dist_deg ** 2 - dist[2].long ** 2 - dist[2].lat ** 2]])
-    //     console.log(A, b)
 
-    //     //(X'X)^-1 X'y
-    //     console.log(math.multiply(math.transpose(A),A))
+    function calculate_demand(warehouses){
+        var demand=math.matrix([demand_list[1],demand_list[2],demand_list[3],demand_list[4],demand_list[5]])
+        var covered = math.multiply(dist_matrix, warehouses).map(d=>d>0 ? 1 : 0)
+        var output = math.multiply(demand, covered)._data
+        var output_percent = output.map((d,i)=>(d/total_demand(i+1)))
+        return output_percent
+    }
 
-    // }
-    // triangulate("1")
+    function getPermutations(array_in, size) {
 
+        function p(t, i) {
+            if (t.length === size) {
+                result.push(t);
+                return;
+            }
+            if (i + 1 > array_in.length) {
+                return;
+            }
+            p(t.concat(array_in[i]), i + 1);
+            p(t, i + 1);
+        }
+
+        var result = [];
+        p([], 0);
+        return result;
+    }
+
+    function iterate_combinations(){
+        //We should only consider
+        //[8, 35, 27, {4|25|26|33|39}, 12, 27, 14, 30, {5|6|16|17|34|41|49},
+        //{7|24|50}, 31, {13|47}]
+        //Because others are strictly dominated
+        // Of the identical sets, calculating mean distance shows which would be ideal
+        //So only consider the following
+        possible_customers = [8,35,28,25,12,27,14,30,5,24,31,47]
+        for (i=4;i<5;i++){
+            var permut = getPermutations(possible_customers, i)
+            permut.forEach(warehouse=>{
+                var warehouses = Array(50).fill(0)
+                warehouse.forEach(i=>{
+                    warehouses[i-1]=1
+                });
+
+                var output = calculate_demand(warehouses)
+                if (output.filter(d=>d>.8).length == 5){
+                    console.log(warehouse, output)
+                }
+
+            });
+        }
+        return
+    }
+    iterate_combinations()
+    function calculate_mean_distance(customer_id){
+        return d3.mean(data.dist_c2c.filter(d=> (+d.customer_from == customer_id) && (+d.dist <= 500)).map(d=>+d.dist))
+    }
+    function decide_city_within_cluster(){
+        clusters.forEach((cluster, i)=>{
+            var min_customer = -1
+            var mean_d = 1000
+            cluster.forEach(customer=>{
+                if (mean_d > calculate_mean_distance(customer)){
+                    min_customer = customer
+                    mean_d = calculate_mean_distance(customer)
+                }
+            })
+        })
+    }
+    decide_city_within_cluster()
     var svgWidth = 1400
     var svgHeight = 500
 
@@ -369,6 +362,10 @@ function ready(error, demand, plants, products, setup, customers, capacity, dist
     svg2.attr("width", width2)
         .attr("height", height2)
 
+    projection = d3.geoAlbers()
+                       .translate([width2/2, height2/2])
+                       .scale([1500])
+    var path = d3.geoPath(projection)
 
     x2 = d3.scaleLinear().rangeRound([0+100, width2 - 100])
     y2 = d3.scaleLinear().rangeRound([height2 - 100, 0+100])
@@ -382,26 +379,49 @@ function ready(error, demand, plants, products, setup, customers, capacity, dist
                 d.city+","+d.state+" "+d.zip+"<br>"
                         }
         )
+    d3.json("us-states.json", (error, json)=>{
+        if (error) throw error
+        svg2.selectAll("path")
+            .data(json.features).enter()
+            .append("path")
+            .attr("d", path)
+            .style("stroke", "#fff")
+            .style("stroke-width", "1")
+            .style("opacity", 0.3)
 
-    svg2.call(tip_circle)
+        svg2.selectAll("circle")
+            .data(data.customers)
+            .enter()
+            .append("circle")
+            .attr("cx", function(d){return projection([+d.long, +d.lat])[0]})
+            .attr("cy", function(d){return projection([+d.long, +d.lat])[1]})
+            .attr("r", 3)
+            .style("fill", "steelblue")
+            .on('mouseover', tip_circle.show)
+            .on('mouseout', tip_circle.hide)
 
-    svg2.selectAll("circle")
-        .data(data.customers)
-        .enter()
-        .append("circle")
-        .attr("cx", function(d){return x2(d.long)})
-        .attr("cy", function(d){return y2(d.lat)})
-        .attr("r", 3)
-        .style("fill", "steelblue")
-        .on('mouseover', tip_circle.show)
-        .on('mouseout', tip_circle.hide)
-    svg2.selectAll("text")
-        .data(data.plants)
-        .enter()
-        .append("text")
-        .attr("x", function(d){return x2(+d.long)})
-        .attr("y", function(d){return y2(+d.lat)})
-        .text(function(d){return d.plant_id})
+        svg2.selectAll("text")
+            .data(data.plants)
+            .enter()
+            .append("text")
+            .attr("x", function(d){return projection([+d.long, +d.lat])[0]})
+            .attr("y", function(d){return projection([+d.long, +d.lat])[1]})
+            .text(function(d){return d.plant_id})
+            .style("cursor", "default")
+            .style("font-size", "10px")
+        svg2.call(tip_circle)
+    })
+
+    // svg2.selectAll("circle")
+    //     .data(data.customers)
+    //     .enter()
+    //     .append("circle")
+    //     .attr("cx", function(d){return x2(d.long)})
+    //     .attr("cy", function(d){return y2(d.lat)})
+    //     .attr("r", 3)
+    //     .style("fill", "steelblue")
+    //     .on('mouseover', tip_circle.show)
+    //     .on('mouseout', tip_circle.hide)
 
 
 }
