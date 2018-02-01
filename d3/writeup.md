@@ -2,13 +2,13 @@ I noticed that demand for each product and customer was equal each year, so remo
 
 Each plant can run 240 * 12 = 2880 hours with no overtime
 Plant 1: 100 tons/hr -> 288000 tons
-Plant 2: 50 tons/hr -> 144000 tons, but only need to run to meet 18000 per quarter
-Plant 3: 50 tons/hr -> 144000 tons, but only need to run to meet 7500 per quarter
+Plant 2: 50 tons/hr -> 144000 tons, but only need to run to meet 18000 per quarter (45 days)
+Plant 3: 50 tons/hr -> 144000 tons, but only need to run to meet 7500 per quarter (18.75 days)
 Plant 4: 50 tons/hr but switching each quarter (8 days for Product 4 to 5 and 6 days for product 5 to 4),
-Quarter 1: product 4 at 60 hours/month * 50 tons = 3000 tons, switch for 8 days, product 5 at 30 hours/month * 50 tons = 1500 tons, switch for 6 days
-Quarter 2: product 4 at 60 hours/month * 50 tons = 3000 tons, switch for 8 days, product 5 at 30 hours/month * 50 tons = 1500 tons, switch for 6 days
-Quarter 3: product 4 at 60 hours/month * 50 tons = 3000 tons, switch for 8 days, product 5 at 30 hours/month * 50 tons = 1500 tons, switch for 6 days
-Quarter 4: product 4 at 60 hours/month * 50 tons = 3000 tons, switch for 8 days, product 5 at 30 hours/month * 50 tons = 1500 tons, switch for 6 days
+Quarter 1: product 4 at 60 hours * 50 tons = 3000 tons, switch for 8 days, product 5 at 30 hours * 50 tons = 1500 tons, switch for 6 days (26 days)
+Quarter 2: product 4 at 60 hours * 50 tons = 3000 tons, switch for 8 days, product 5 at 30 hours * 50 tons = 1500 tons, switch for 6 days (26 days)
+Quarter 3: product 4 at 60 hours * 50 tons = 3000 tons, switch for 8 days, product 5 at 30 hours * 50 tons = 1500 tons, switch for 6 days (26 days)
+Quarter 4: product 4 at 60 hours * 50 tons = 3000 tons, switch for 8 days, product 5 at 30 hours * 50 tons = 1500 tons, switch for 6 days (26 days)
 
 Production cost per ton
 Product 1: 500
@@ -34,6 +34,7 @@ Product 3: 14,30,32,35
 Product 4: 2,28,36
 Product 5: 2,28,36
 
+There are many different ways to cycle through products to meet demands. It takes 31 days to cylce through all products
 
 Plant, customer, and product details are given on the first three tabs of the workbook (“Plants”, “Customers”, and “Product”).
 Annual Demand is given in the “Demand” worksheet.  Demand should be satisfied on a quarterly basis (assume that all quarters have the same expected demand).
