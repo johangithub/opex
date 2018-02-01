@@ -13,6 +13,36 @@ data = {}
 
 function ready(error, demand, plants, products, setup, customers, capacity, dist_c2c, dist_p2c){
     if (error) throw error
+    //Preprocessing
+    demand.forEach(d=>{
+        d.customer_id = +d.customer_id
+        d.product_id = +d.product_id
+        d.demand = +d.demand
+        d.revenue = +d.revenue
+    })
+    customers.forEach(d=>{
+        d.customer_id = +d.customer_id
+        d.lat = +d.lat
+        d.long = +d.long
+    })
+    capacity.forEach(d=>{
+        d.plant_id = +d.plant_id
+        d.product_id = +d.product_id
+        d.capacity = +d.capacity
+        d.cost = +d.cost
+    })
+    dist_p2c.forEach(d=>{
+        d.customer_id = +d.customer_id
+        d.plant_id = +d.plant_id
+        d.dist = +d.dist
+    })
+    dist_c2c.forEach(d=>{
+        d.dist = +d.dist
+        d.customer_from = +d.customer_from
+        d.customer_to = +d.customer_to
+    })
+
+
     data['demand'] = demand
     data['plants'] = plants
     data['products'] = products
@@ -22,17 +52,18 @@ function ready(error, demand, plants, products, setup, customers, capacity, dist
     data['dist_c2c'] = dist_c2c
     data['dist_p2c'] = dist_p2c
 
+
     // cost is $2 per mile per truck, in 10 tons. Rounding up for 10, we get the number of trucks required and miles
     // Math.ceil(data.demand[0].demand/10) * distance
     // console.log(Math.ceil(data.demand[0].demand/10))
 
     function closest_to_plant(plant_id){
-        return data.dist_p2c.filter(d => d.plant_id ==plant_id).sort((a,b) => +a.dist>+b.dist)
+        return data.dist_p2c.filter(d => d.plant_id ==plant_id).sort((a,b) => a.dist>b.dist)
     }
 
     //
     function total_demand(product_id){
-        return d3.format('.2f')(d3.sum(data.demand.filter(d => +d.product_id == product_id).map(d => +d.demand)))
+        return d3.format('.2f')(_.sum(data.demand.filter(d => d.product_id == product_id).map(d => d.demand)))
     }
     
     function coverage_500(product_id){
@@ -42,23 +73,23 @@ function ready(error, demand, plants, products, setup, customers, capacity, dist
         var covered_customers = data.dist_p2c.filter(dist => dist.plant_id == plant_id && +dist.dist <= 500).map(dist => dist.customer_id)
 
         //Actual demand covered
-        covered_demand = data.demand.filter(d=>d.product_id == product_id && covered_customers.includes(d.customer_id)).map(d=>+d.demand).reduce((a,b)=> a + b, 0)
+        covered_demand = data.demand.filter(d=>d.product_id == product_id && covered_customers.includes(d.customer_id)).map(d=>d.demand).reduce((a,b)=> a + b, 0)
 
         // Set customers covered into plants data
         data.plants.filter(d=>d.plant_id == plant_id)[0].covered = covered_customers
 
-        return d3.format(".2%")(covered_demand/total_demand(product_id))
+        return covered_demand/total_demand(product_id)
     }
 
     // Base
     function demand_covered(){
         demand_list = {}
         for (i=1;i<6;i++){
-            demand_list[i] = data.demand.filter(d=>+d.product_id == i).map(d => +d.demand)
+            demand_list[i] = data.demand.filter(d=>d.product_id == i).map(d => d.demand)
         }
         dist_matrix = []
         for (i=1;i<51;i++){
-            var temp = data.dist_c2c.filter(d=>+d.customer_from==i).sort((a,b)=>+a.customer_to > +b.customer_to).map(d => +d.dist <= 500 ? 1 : 0)
+            var temp = data.dist_c2c.filter(d=>d.customer_from==i).sort((a,b)=>a.customer_to > b.customer_to).map(d => d.dist <= 500 ? 1 : 0)
             dist_matrix.push(temp)
         }
 
@@ -166,6 +197,7 @@ function ready(error, demand, plants, products, setup, customers, capacity, dist
         return result;
     }
 
+    after_warehouse_percentage = {}
     function iterate_combinations(){
         //We should only consider
         //[8, 35, 27, {4|25|26|33|39}, 12, 27, 14, 30, {5|6|16|17|34|41|49},
@@ -185,8 +217,9 @@ function ready(error, demand, plants, products, setup, customers, capacity, dist
                 var target_percentage = [.7115, .5732, .5257, .752, .7429]
                 var output = calculate_demand(warehouses)[0]
                 var output_percent = calculate_demand(warehouses)[1]
-                if (output_percent.filter((d,i)=>d>=target_percentage[i]).length == 5 && d3.sum(output)>338000){
-                    console.log(warehouse, d3.sum(output), output_percent)
+                if (output_percent.filter((d,i)=>d>=target_percentage[i]).length == 5 && _.sum(output)>338000){
+                    console.log(warehouse, _.sum(output), output_percent)
+                    after_warehouse_percentage = output_percent
                 }
 
             });
@@ -195,14 +228,14 @@ function ready(error, demand, plants, products, setup, customers, capacity, dist
     }
     iterate_combinations()
     function calculate_mean_distance(customer_id){
-        return d3.mean(data.dist_c2c.filter(d=> (+d.customer_from == customer_id) && (+d.dist <= 500)).map(d=>+d.dist))
+        return d3.mean(data.dist_c2c.filter(d=> (d.customer_from == customer_id) && (d.dist <= 500)).map(d=>d.dist))
     }
     function calculate_demand_cost(customer_id){
-        customers_to_be_served = data.dist_c2c.filter(d=> (+d.customer_from == customer_id) && (+d.dist <= 500)).map(d=>d.customer_to)
+        customers_to_be_served = data.dist_c2c.filter(d=> (d.customer_from == customer_id) && (d.dist <= 500)).map(d=>d.customer_to)
         var weighted_cost = 0
         customers_to_be_served.forEach(customer =>{
-            demand_served = d3.sum(data.demand.filter(d=>d.customer_id==customer).map(d=>d.demand))
-            distance = data.dist_c2c.filter(d=> (d.customer_to==customer) && (d.customer_from ==customer_id)).map(d=>+d.dist)[0]
+            demand_served = _.sum(data.demand.filter(d=>d.customer_id==customer).map(d=>d.demand))
+            distance = data.dist_c2c.filter(d=> (d.customer_to==customer) && (d.customer_from ==customer_id)).map(d=>d.dist)[0]
             weighted_cost += Math.ceil(demand_served/10)* distance * 2 
         })
         return weighted_cost
@@ -227,18 +260,54 @@ function ready(error, demand, plants, products, setup, customers, capacity, dist
     }
     decide_city_within_cluster()
 
+
     function simulate_fulfillment(){
-        //4 quarters. 5 Products. 4 Plants. Sort based on distance and fill the closest ones first.
-        for (let product_id = 1;product_id<6;product_id++){
-            if (product_id <5){
-                var capacity = +data.capacity.filter(d=>d.plant_id == product_id && d.product_id == product_id && d.plant_id==product_id)[0].capacity           
-            } else {
-                var capacity = +data.capacity.filter(d=>d.plant_id == 4 && d.product_id == product_id)[0].capacity           
-            }
-            console.log(capacity)
+        production_cost_per_ton = {
+            1: 500,
+            2: 400,
+            3: 300,
+            4: 200,
+            5: 100
         }
+
+        //4 quarters. 5 Products. 4 Plants.
+        quarterly_demand = {}
+        transportation_cost = {}
+        revenue = {}
+        q_profit = {}
+        //Join distance and demand table
+        _.forEach([1,2,3,4,5], product=>{
+            var demands = data.demand.filter(d=>d.product_id==product)
+            quarterly_demand[product] = demands.map(d=>d.demand/4)
+
+            var plant = product == 5 ? 4 : product
+            _.map(demands, d=>{
+                return _.assign(d, _.find(data.dist_p2c, {customer_id: d.customer_id, plant_id: plant}))
+            });
+            transportation_cost[product] = demands.map(d=>d.dist*2*Math.ceil(d.demand/10))
+            revenue[product] = demands.map(d=>d.demand * d.revenue)
+        });
+
+        production_cost_1 = 72000*production_cost_per_ton[1] + (_.sum(quarterly_demand[1])-72000) * production_cost_per_ton[1]*1.5
+        production_cost_2 = 18000*production_cost_per_ton[2]
+        production_cost_3 = 7500*production_cost_per_ton[3]
+        production_cost_4 = 3000*production_cost_per_ton[4] + 5000*8
+        production_cost_5 = 1500*production_cost_per_ton[5] + 5000*6
+
+        q_profit[1] = _.sum(revenue[1])-production_cost_1-_.sum(transportation_cost[1])
+        q_profit[2] = _.sum(revenue[2])-production_cost_2-_.sum(transportation_cost[2])
+        q_profit[3] = _.sum(revenue[3])-production_cost_3-_.sum(transportation_cost[3])
+        q_profit[4] = _.sum(revenue[4])-production_cost_4-_.sum(transportation_cost[4])
+        q_profit[5] = _.sum(revenue[5])-production_cost_5-_.sum(transportation_cost[5])
+
+        console.log(q_profit[1],q_profit[1]/_.sum(revenue[1]))
+        console.log(q_profit[2],q_profit[2]/_.sum(revenue[2]))
+        console.log(q_profit[3],q_profit[3]/_.sum(revenue[3]))
+        console.log(q_profit[4],q_profit[4]/_.sum(revenue[4]))
+        console.log(q_profit[5],q_profit[5]/_.sum(revenue[5]))
     }
     simulate_fulfillment()
+
     var svgWidth = 1400
     var svgHeight = 500
 
@@ -274,12 +343,15 @@ function ready(error, demand, plants, products, setup, customers, capacity, dist
         if (checkedValue =='customer_id'){
             x.domain(_.range(1,51))
         } else if (checkedValue == 'demand'){
-            x.domain(data.demand.sort((a,b) => +a.demand < +b.demand).filter(d => d.product_id==product_id).map(d => d.customer_id))
+            x.domain(data.demand.sort((a,b) => a.demand < b.demand).filter(d => d.product_id==product_id).map(d => d.customer_id))
         }
         updateBar(data.demand, product_id)   
     })
 
-  
+    var simulate = d3.select("body")
+                    .append("div")
+                    .attr("id", "simulate")
+
     var text = d3.select("body")
                  .append("div")
                  .selectAll(".summary")
@@ -293,10 +365,9 @@ function ready(error, demand, plants, products, setup, customers, capacity, dist
         .html(function(product_id){
             return 'Product '+ product_id+ 
                 ' / Total Demand: '+total_demand(product_id) +
-                 ' / 500-mile Coverage: '+coverage_500(product_id) + '<br>'
+                 ' / 500-mile Coverage: '+d3.format(".2%")(coverage_500(product_id)) + ' / With warehouses: '+d3.format(".2%")(after_warehouse_percentage[product_id-1]+coverage_500(product_id)) +'<br>'
                 })
 
-  
     var svg = d3.select("body").append("svg"),
           margin = {top: 20, right: 20, bottom: 30, left: 70},
           width = svgWidth - margin.left - margin.right,
@@ -344,8 +415,8 @@ function ready(error, demand, plants, products, setup, customers, capacity, dist
 
         var barchartData = input.filter(d=>{return d.product_id==product_id})
         barchartData.forEach(d=>{
-            d.demand = +d.demand
-            d.revenue = +d.revenue
+            d.demand = d.demand
+            d.revenue = d.revenue
         })
 
         var t = d3.transition().duration(500)
@@ -376,7 +447,7 @@ function ready(error, demand, plants, products, setup, customers, capacity, dist
 
         var summaryData = {
             id: product_id,
-            demand: d3.sum(barchartData.map(d => d.demand))
+            demand: _.sum(barchartData.map(d => d.demand))
         }
     }
 
@@ -401,8 +472,8 @@ function ready(error, demand, plants, products, setup, customers, capacity, dist
     x2 = d3.scaleLinear().rangeRound([0+100, width2 - 100])
     y2 = d3.scaleLinear().rangeRound([height2 - 100, 0+100])
 
-    x2.domain(d3.extent(data.customers.map(d=>+d.long)))
-    y2.domain(d3.extent(data.customers.map(d=>+d.lat)))
+    x2.domain(d3.extent(data.customers.map(d=>d.long)))
+    y2.domain(d3.extent(data.customers.map(d=>d.lat)))
     
     var tip_circle = d3.tip().attr("class", "d3-tip").html(
         function(d){
@@ -424,8 +495,8 @@ function ready(error, demand, plants, products, setup, customers, capacity, dist
             .data(data.customers)
             .enter()
             .append("circle")
-            .attr("cx", function(d){return projection([+d.long, +d.lat])[0]})
-            .attr("cy", function(d){return projection([+d.long, +d.lat])[1]})
+            .attr("cx", function(d){return projection([d.long, d.lat])[0]})
+            .attr("cy", function(d){return projection([d.long, d.lat])[1]})
             .attr("r", 3)
             .style("fill", "steelblue")
             .attr("id", d=>"circle_"+d.customer_id)
@@ -437,8 +508,8 @@ function ready(error, demand, plants, products, setup, customers, capacity, dist
             .enter()
             .append("text")
             .attr("class", "plant")
-            .attr("x", function(d){return projection([+d.long, +d.lat])[0]})
-            .attr("y", function(d){return projection([+d.long, +d.lat])[1]})
+            .attr("x", function(d){return projection([d.long, d.lat])[0]})
+            .attr("y", function(d){return projection([d.long, d.lat])[1]})
             .text(function(d){return d.plant_id})
             .style("cursor", "default")
             .style("font-size", "10px")
