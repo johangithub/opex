@@ -36,12 +36,17 @@ function ready(error, demand, plants, products, setup, customers, capacity, dist
         d.plant_id = +d.plant_id
         d.dist = +d.dist
     })
+    setup.forEach(d=> {
+        d.from = +d.from
+        d.to = +d.to
+        d.days = +d.days
+        d.cost = d.days * 5000
+    })
     dist_c2c.forEach(d=>{
         d.dist = +d.dist
         d.customer_from = +d.customer_from
         d.customer_to = +d.customer_to
     })
-
 
     data['demand'] = demand
     data['plants'] = plants
@@ -164,9 +169,6 @@ function ready(error, demand, plants, products, setup, customers, capacity, dist
                 }
             }
         }
-        clusters.forEach((d,i)=>{
-            console.log(i, d)
-        })
     }
     demand_covered()
 
@@ -178,8 +180,7 @@ function ready(error, demand, plants, products, setup, customers, capacity, dist
         return [output, output_percent]
     }
 
-    function getPermutations(array_in, size) {
-
+    function getCombinations(array_in, size) {
         function p(t, i) {
             if (t.length === size) {
                 result.push(t);
@@ -207,7 +208,7 @@ function ready(error, demand, plants, products, setup, customers, capacity, dist
         //So only consider the following
         possible_customers = [8,35,25,12,27,14,30,5,24,31,13,2]
         for (i=4;i<5;i++){
-            var permut = getPermutations(possible_customers, i)
+            var permut = getCombinations(possible_customers, i)
             permut.forEach(warehouse=>{
                 var warehouses = Array(50).fill(0)
                 warehouse.forEach(i=>{
@@ -239,10 +240,6 @@ function ready(error, demand, plants, products, setup, customers, capacity, dist
             weighted_cost += Math.ceil(demand_served/10)* distance * 2 
         })
         return weighted_cost
-    // cost is $2 per mile per truck, in 10 tons. Rounding up for 10, we get the number of trucks required and miles
-    // Math.ceil(data.demand[0].demand/10) * distance
-    // console.log(Math.ceil(data.demand[0].demand/10))
-
     }
 
     function decide_city_within_cluster(){
@@ -258,55 +255,146 @@ function ready(error, demand, plants, products, setup, customers, capacity, dist
         // console.log(cluster, min_customer)
         })
     }
-    decide_city_within_cluster()
+    // decide_city_within_cluster()
 
+//Given the start product and possible products to cycle through, give the shortest cycle days to transition through and return to normal
+function best_cycling_products(start_product, possible_products){
+    function permute(input_array) {
+      var i, ch;
+      for (i = 0; i < input_array.length; i++) {
+        ch = input_array.splice(i, 1)[0];
+        usedChars.push(ch);
+        if (input_array.length == 0) {
+          permArr.push(usedChars.slice());
+        }
+        permute(input_array);
+        input_array.splice(i, 0, ch);
+        usedChars.pop();
+      }
+      return permArr
+    };
 
-    function simulate_fulfillment(){
-        production_cost_per_ton = {
+    function setup_cost(from, to){
+        return data.setup.filter(d=>d.from==from && d.to==to)[0].days
+    }
+        var permArr = []
+        var usedChars = []
+
+        var permut_input = possible_products
+        permut_input.splice(possible_products.indexOf(start_product),1)
+        var permutations = permute(permut_input)
+        var cost = 1000
+        var best_candidate = []
+        permutations.forEach(cycle=>{
+            // Iterate through all possible permutations of cycle to get the best cycling
+            var temp_cost = setup_cost(start_product,cycle[0])
+            for (let i=0; i<3;i++){
+                temp_cost += setup_cost(cycle[i],cycle[i+1])
+            }
+
+            temp_cost += setup_cost(cycle[3],start_product)
+            if (cost > temp_cost){
+                cost = temp_cost
+                best_candidate = cycle
+            }
+    })
+    console.log(start_product, best_candidate, cost)
+}
+best_cycling_products(1,[1,2,3,4,5])
+
+    production_cost_per_ton = {
             1: 500,
             2: 400,
             3: 300,
             4: 200,
             5: 100
+    }
+
+    function simulate_fulfillment(scenario){
+        //4 quarters. 5 Products. 4 Plants.
+        q_profit = {}
+        available_plants = {1: [1], 2: [2], 3: [3], 4: [4], 5: [4]}
+        var upgrade_cost = 0
+        var upgraded = []
+        if (scenario=='all_upgrade'){
+            upgraded = [1,2,3,4]
+            upgrade_cost = upgraded.length * 10000000
+            //determine closest available plant for any product.
+            //If upgraded, available. If not, only the original servicing plant is available.
+            for (let product=1;product<=5;product++){
+                available_plants[product] = _.union(available_plants[product],upgraded).sort()
+            }
         }
 
-        //4 quarters. 5 Products. 4 Plants.
-        quarterly_demand = {}
-        transportation_cost = {}
-        revenue = {}
-        q_profit = {}
-        //Join distance and demand table
-        _.forEach([1,2,3,4,5], product=>{
-            var demands = data.demand.filter(d=>d.product_id==product)
-            quarterly_demand[product] = demands.map(d=>d.demand/4)
+        //Pick the closest plants given the available plants for each demand
+        _.map(data.demand, d=>{
+            //All availble plants for that demand
+            var all_available_plants = data.dist_p2c.filter(p2c=>p2c.customer_id == d.customer_id && (available_plants[d.product_id].includes(p2c.plant_id)))
+            //Minimum among all available plants
+            var min_dist_plant = _.minBy(all_available_plants, d=>d.dist)
+            return _.assign(d, min_dist_plant)
+        })
 
-            var plant = product == 5 ? 4 : product
-            _.map(demands, d=>{
-                return _.assign(d, _.find(data.dist_p2c, {customer_id: d.customer_id, plant_id: plant}))
-            });
-            transportation_cost[product] = demands.map(d=>d.dist*2*Math.ceil(d.demand/10))
-            revenue[product] = demands.map(d=>d.demand * d.revenue)
-        });
+        var quarterly_demand = []
+        var transportation_cost = {}
+        var revenue = {}
 
-        production_cost_1 = 72000*production_cost_per_ton[1] + (_.sum(quarterly_demand[1])-72000) * production_cost_per_ton[1]*1.5
-        production_cost_2 = 18000*production_cost_per_ton[2]
-        production_cost_3 = 7500*production_cost_per_ton[3]
-        production_cost_4 = 3000*production_cost_per_ton[4] + 5000*8
-        production_cost_5 = 1500*production_cost_per_ton[5] + 5000*6
+        //Transport cost is  $2/mile with 10 ton truck each
+        quarterly_demand = data.demand.map(d=>{
+                d.quarterly_demand = d.demand / 4
+                d.quarterly_transport_cost = d.dist*2*Math.ceil(d.quarterly_demand/10)
+                d.quarterly_revenue = d.quarterly_demand * d.revenue
+                return d
+        })
 
-        q_profit[1] = _.sum(revenue[1])-production_cost_1-_.sum(transportation_cost[1])
-        q_profit[2] = _.sum(revenue[2])-production_cost_2-_.sum(transportation_cost[2])
-        q_profit[3] = _.sum(revenue[3])-production_cost_3-_.sum(transportation_cost[3])
-        q_profit[4] = _.sum(revenue[4])-production_cost_4-_.sum(transportation_cost[4])
-        q_profit[5] = _.sum(revenue[5])-production_cost_5-_.sum(transportation_cost[5])
+        //Determine if each plant can fulfill the quarterly demand. If not, must go into overtime or fetch from other plant
+        for (let plant=1;plant<=4;plant++){
+            for (let product=1;product<=5;product++){
 
-        console.log(q_profit[1],q_profit[1]/_.sum(revenue[1]))
-        console.log(q_profit[2],q_profit[2]/_.sum(revenue[2]))
-        console.log(q_profit[3],q_profit[3]/_.sum(revenue[3]))
-        console.log(q_profit[4],q_profit[4]/_.sum(revenue[4]))
-        console.log(q_profit[5],q_profit[5]/_.sum(revenue[5]))
+            // console.log(`Plant: ${plant}, Product: ${product}, ${_.sum(quarterly_demand.filter(d=>(d.product_id==product)&&d.plant_id ==plant).map(d=>d.quarterly_demand))}`)
+            }
+        }
+
+        function production_cost(product){
+            if (product==1){
+                return 72000*production_cost_per_ton[1] + (_.sum(quarterly_demand.filter(d=>d.product_id==1).map(d=>d.quarterly_demand))-72000) * production_cost_per_ton[1]*1.5
+            } else if (product == 2){
+                return 18000*production_cost_per_ton[2]
+            } else if (product == 3){
+                return 7500*production_cost_per_ton[3]
+            } else if (product == 4){
+                return 3000*production_cost_per_ton[4] + 5000*8
+            } else if (product == 5){
+                return  1500*production_cost_per_ton[5] + 5000*6
+            }
+        }
+
+        var total_q_profit = 0
+        var total_q_transport_cost = 0
+        var total_q_revenue = 0
+        var total_q_production_cost = 0
+        for (let product=1;product<=5;product++){
+            var product_demands = quarterly_demand.filter(d=>d.product_id==product)
+            var transport_cost = product_demands.map(d=>d.quarterly_transport_cost)
+            var q_production_cost = production_cost(product)
+            var q_revenue = product_demands.map(d=>d.quarterly_revenue)
+            total_q_profit += _.sum(q_revenue)-_.sum(transport_cost)-q_production_cost
+            total_q_transport_cost += _.sum(transport_cost)
+            total_q_revenue += _.sum(q_revenue)
+            total_q_production_cost += q_production_cost
+        }
+        console.log(scenario,upgrade_cost)
+        return {profit: total_q_profit * 4 - upgrade_cost, transport_cost: total_q_transport_cost * 4, upgrade_cost: upgrade_cost, revenue: total_q_revenue * 4, production_cost: total_q_production_cost*4}
     }
-    simulate_fulfillment()
+    var scenarios = ['baseline','all_upgrade']
+    for (let i=0;i<scenarios.length;i++){
+        var result = simulate_fulfillment(scenarios[i])
+        function formatNum(number){
+            return d3.format(".5s")(number)
+        }
+        console.log(`Scenario ${scenarios[i]}--Profit: ${formatNum(result.profit)} / Production Cost: ${formatNum(result.production_cost)} / Transportation Cost: ${formatNum(result.transport_cost)} / Upgrade Cost: ${formatNum(result.upgrade_cost)}`)
+    }
+
 
     var svgWidth = 1400
     var svgHeight = 500
@@ -391,7 +479,7 @@ function ready(error, demand, plants, products, setup, customers, capacity, dist
 
     x.domain(_.range(1,51))
     x.rangeRound([0, 25*50]).padding(0.1)
-    y.domain([0, 13000])
+
     
     var g = svg.append("g")
       .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
@@ -411,6 +499,18 @@ function ready(error, demand, plants, products, setup, customers, capacity, dist
     .attr("text-anchor", "end")
     .text("Frequency")
 
+    var color = function(d){
+        //If already covered, color grey
+        if (d.product_id == 1 && [10,19,20,27,31].includes(d.customer_id) ||
+            d.product_id == 2 && [5,6,16,17,18,30,34,41,48,49].includes(d.customer_id) ||
+            d.product_id == 3 && [14,30,32,35].includes(d.customer_id) ||
+            d.product_id == 4 && [2,28,36].includes(d.customer_id) ||
+            d.product_id == 5 && [2,28,36].includes(d.customer_id)
+            ){
+            return "grey"
+        }
+        return 'steelblue'
+    }
     function updateBar(input,product_id){
 
         var barchartData = input.filter(d=>{return d.product_id==product_id})
@@ -419,6 +519,7 @@ function ready(error, demand, plants, products, setup, customers, capacity, dist
             d.revenue = d.revenue
         })
 
+        y.domain([0, d3.max(barchartData.map(d=>d.demand))])
         var t = d3.transition().duration(500)
 
         svg.selectAll(".axis--x")
@@ -434,6 +535,7 @@ function ready(error, demand, plants, products, setup, customers, capacity, dist
            .transition(t)
            .attr("x", function(d){return x(d.customer_id)})
            .attr("y", function(d){return y(d.demand)})
+           .attr("fill", d=>color(d))
            .attr("height", function(d){ return height-y(d.demand)})
 
         bar.enter().append("rect")
@@ -441,6 +543,7 @@ function ready(error, demand, plants, products, setup, customers, capacity, dist
             .attr("x", function(d){return x(d.customer_id)})
             .attr("width", x.bandwidth())
             .attr("y", function(d){return y(d.demand)})
+            .attr("fill", d=>color(d))
             .attr("height", function(d){return height - y(d.demand)})
             .on("mouseover", tip.show)
             .on("mouseout", tip.hide)
