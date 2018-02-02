@@ -58,10 +58,6 @@ function ready(error, demand, plants, products, setup, customers, capacity, dist
     data['dist_p2c'] = dist_p2c
 
 
-    // cost is $2 per mile per truck, in 10 tons. Rounding up for 10, we get the number of trucks required and miles
-    // Math.ceil(data.demand[0].demand/10) * distance
-    // console.log(Math.ceil(data.demand[0].demand/10))
-
     function closest_to_plant(plant_id){
         return data.dist_p2c.filter(d => d.plant_id ==plant_id).sort((a,b) => a.dist>b.dist)
     }
@@ -89,11 +85,11 @@ function ready(error, demand, plants, products, setup, customers, capacity, dist
     // Base
     function demand_covered(){
         demand_list = {}
-        for (i=1;i<6;i++){
+        for (let i=1;i<=5;i++){
             demand_list[i] = data.demand.filter(d=>d.product_id == i).map(d => d.demand)
         }
         dist_matrix = []
-        for (i=1;i<51;i++){
+        for (let i=1;i<=50;i++){
             var temp = data.dist_c2c.filter(d=>d.customer_from==i).sort((a,b)=>a.customer_to > b.customer_to).map(d => d.dist <= 500 ? 1 : 0)
             dist_matrix.push(temp)
         }
@@ -120,25 +116,13 @@ function ready(error, demand, plants, products, setup, customers, capacity, dist
         });
 
         dist=math.matrix(dist_matrix)
-        var demand_coverage = []
-        for (let i=0;i<50;i++){
-            demand_coverage.push(math.dotMultiply(demand_list[1],dist_matrix[i]))
+
+        dist_set = {}
+        for (let customer=1;customer<=50;customer++){
+            dist_set[customer] = data.dist_c2c.filter(d=>d.dist<=500 && d.customer_from == customer).map(d=>d.customer_to)
         }
 
-        // demand=math.matrix([demand_list[1],demand_list[2],demand_list[3],demand_list[4],demand_list[5]])
-        // warehouse=math.transpose(Array(50).fill(1))
-        // B = math.multiply(dist,warehouse)
-        // b=math.transpose(math.multiply(demand, math.multiply(dist,warehouse).map(d=>d>0 ? 1 : 0)))
-        // A=math.multiply(demand, dist)
-        // console.log(b._size, A._size)
-        // a=numeric.solveLP(Array(50).fill(1),A, -1*b)
-        // console.log(a)
-        dist_ind = dist_matrix.map(row => row.map((d,i) => (i+1)).filter(ind=>row[ind-1]==1))
-        dist_set = {}
-        dist_ind.forEach((d,i)=>{
-            dist_set[(i+1).toString()] = d
-        })
-        count=0
+        console.log(dist_set)
         clusters = []
         same_list = new Set()
         for (let i=1;i<50;i++){
@@ -158,13 +142,6 @@ function ready(error, demand, plants, products, setup, customers, capacity, dist
                         }
                         same_list.add(i)
                         same_list.add(j)
-
-                        // console.log(`${i} is the same as ${j}`)
-
-                    } else if (dist_set[i].length < dist_set[j].length){
-                        // console.log(`${j} strictly dominates ${i}`)
-                    } else if (dist_set[i].length > dist_set[j].length){
-                        // console.log(`${i} strictly dominates ${j}`)
                     }
                 }
             }
@@ -327,25 +304,21 @@ best_cycling_products(1,[1,2,3,4,5])
         }
 
         //Pick the closest plants given the available plants for each demand
-        _.map(data.demand, d=>{
+        //and calculate quarterly demand
+        //Transport cost is  $2/mile with 10 ton truck each
+
+        var quarterly_demand = _.map(data.demand, d=>{
             //All availble plants for that demand
             var all_available_plants = data.dist_p2c.filter(p2c=>p2c.customer_id == d.customer_id && (available_plants[d.product_id].includes(p2c.plant_id)))
             //Minimum among all available plants
             var min_dist_plant = _.minBy(all_available_plants, d=>d.dist)
-            return _.assign(d, min_dist_plant)
+            _.assign(d, min_dist_plant)
+            d.quarterly_demand = d.demand / 4
+            d.quarterly_transport_cost = d.dist*2*Math.ceil(d.quarterly_demand/10)
+            d.quarterly_revenue = d.quarterly_demand * d.revenue
+            return d
         })
 
-        var quarterly_demand = []
-        var transportation_cost = {}
-        var revenue = {}
-
-        //Transport cost is  $2/mile with 10 ton truck each
-        quarterly_demand = data.demand.map(d=>{
-                d.quarterly_demand = d.demand / 4
-                d.quarterly_transport_cost = d.dist*2*Math.ceil(d.quarterly_demand/10)
-                d.quarterly_revenue = d.quarterly_demand * d.revenue
-                return d
-        })
 
         //Determine if each plant can fulfill the quarterly demand. If not, must go into overtime or fetch from other plant
         for (let plant=1;plant<=4;plant++){
@@ -383,8 +356,14 @@ best_cycling_products(1,[1,2,3,4,5])
             total_q_revenue += _.sum(q_revenue)
             total_q_production_cost += q_production_cost
         }
-        console.log(scenario,upgrade_cost)
-        return {profit: total_q_profit * 4 - upgrade_cost, transport_cost: total_q_transport_cost * 4, upgrade_cost: upgrade_cost, revenue: total_q_revenue * 4, production_cost: total_q_production_cost*4}
+
+        return {
+            profit: total_q_profit * 4 - upgrade_cost,
+            transport_cost: total_q_transport_cost * 4,
+            upgrade_cost: upgrade_cost,
+            revenue: total_q_revenue * 4,
+            production_cost: total_q_production_cost * 4
+        }
     }
     var scenarios = ['baseline','all_upgrade']
     for (let i=0;i<scenarios.length;i++){
@@ -511,9 +490,9 @@ best_cycling_products(1,[1,2,3,4,5])
         }
         return 'steelblue'
     }
-    function updateBar(input,product_id){
-
-        var barchartData = input.filter(d=>{return d.product_id==product_id})
+    function updateBar(product_id){
+        var product_id = d3.select("#product").property("value")
+        var barchartData = data.demand.filter(d=>{return d.product_id==product_id})
         barchartData.forEach(d=>{
             d.demand = d.demand
             d.revenue = d.revenue
@@ -529,22 +508,22 @@ best_cycling_products(1,[1,2,3,4,5])
           .call(yAxis)
           
         var bar =  g.selectAll(".bar")
-                    .data(barchartData, function(d){return d.customer_id})
+                    .data(barchartData, d => d.customer_id)
 
         bar.attr("class", "bar update")
            .transition(t)
-           .attr("x", function(d){return x(d.customer_id)})
-           .attr("y", function(d){return y(d.demand)})
-           .attr("fill", d=>color(d))
-           .attr("height", function(d){ return height-y(d.demand)})
+           .attr("x", d => x(d.customer_id))
+           .attr("y", d => y(d.demand))
+           .attr("fill", color)
+           .attr("height", d => height-y(d.demand))
 
         bar.enter().append("rect")
             .attr("class", "bar enter")
-            .attr("x", function(d){return x(d.customer_id)})
+            .attr("x", d => x(d.customer_id))
             .attr("width", x.bandwidth())
-            .attr("y", function(d){return y(d.demand)})
-            .attr("fill", d=>color(d))
-            .attr("height", function(d){return height - y(d.demand)})
+            .attr("y", d => y(d.demand))
+            .attr("fill", color)
+            .attr("height", d => height - y(d.demand))
             .on("mouseover", tip.show)
             .on("mouseout", tip.hide)
 
@@ -554,10 +533,10 @@ best_cycling_products(1,[1,2,3,4,5])
         }
     }
 
-    updateBar(data.demand, d3.select("#product").property("value"))
+    updateBar()
 
     function onProductChange(){
-        updateBar(data.demand, d3.select("#product").property("value"))
+        updateBar( d3.select("#product").property("value"))
     }
 
     var svg2 = d3.select("body").append("svg"),
