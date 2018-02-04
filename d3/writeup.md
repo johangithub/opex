@@ -34,6 +34,23 @@ Product 3: 14,30,32,35
 Product 4: 2,28,36
 Product 5: 2,28,36
 
+
+Possible upgrade scenarios:
+Upgrade 1 plant (1,2,3,4)
+Upgrade 2 plants (12, 13, 14, 23, 24, 34)
+Upgrade 3 plants (123, 124, 134, 234)
+Upgrade all plants (1234)
+
+For each upgrade scenario consider different demand-fulfilling strategy
+--Fulfill to the closest demand no matter the capacity. With simulation of upgrade all plants, plant 3 ends up being overworked.
+This also doesn't take advantage of plant 1 being more efficient.
+
+--Let plant 4 take care of nation-wide fulfillment of product 4 and 5, and let everyone else take care of every other demand
+--This may work because of low demand of product 4 and 5. 
+
+Upgrading plant 4 nor fulfilling product 4 or 5 from other locations doesn't make sense, as the total transport cost for product 4 and 5 is $1.2M
+and 4 is not in a favorable location.
+
 There are many different ways to cycle through products to meet demands. It takes 31 days to cycle through all products
 
 Plant, customer, and product details are given on the first three tabs of the workbook (“Plants”, “Customers”, and “Product”).
@@ -58,3 +75,8 @@ These costs are given in days in the worksheet “Setups”.  Each setup costs $
 Setups also affect capacities (overall plant hour based capacities only).  If five days are given to setups, that’s five days (40 hours) of production capacity lost.
 This does not affect product/location specific constraints.
 The cost of upgrading each plant is $10,000,000 per plant.
+
+Assumptions: 
+Only one kind of product can be shipped in each shipment.
+You cannot produce two different products in one day.
+Assumed 30 days * 12 months  = 360 days
