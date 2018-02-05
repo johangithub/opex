@@ -80,3 +80,4 @@ Assumptions:
 Only one kind of product can be shipped in each shipment.
 You cannot produce two different products in one day.
 Assumed 30 days * 12 months  = 360 days
+Delivery is fulfilled immediately and done at the end of the quarter.

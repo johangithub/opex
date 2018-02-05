@@ -1,34 +1,48 @@
 class Scenario {
-    constructor(name, upgraded){
+    constructor(name, upgraded, available_plants){
         this.name = name
         this.upgraded = upgraded
         this.upgrade_cost = upgraded.length * 10000000
+        this.available_plants = available_plants
         this.quarter = 1
+        this.customers = []
+        this.plants = []
+        this.demands = []
+        this.profit = 0
+        this.transport_cost = 0
+        this.revenue = 0
+        this.production_cost = 0
+        this.setup_cost = 0
     }
-    available_plants(product_id){
-        var available_plants = {1: [1], 2: [2], 3: [3], 4: [4], 5: [4]} 
-        //If upgraded, available. If not, only the original servicing plant is available.
-            for (let product=1;product<=5;product++){
-                available_plants[product] = _.union(available_plants[product],this.upgraded).sort()
+    assign_demand_to_plants(){
+        var sorted_demands = _.sortBy(this.demands, d=>get_marginal_profit(d, this.available_plants))
+        function get_marginal_profit(demand, available_plants){
+            //All available plants in this scenario sorted by the distance
+            var production_cost_per_ton = (6-demand.product_id)*100
+            var available_plants = available_plants[demand.product_id]
+            var profit = available_plants.map(d=> (demand.revenue*demand.demand - d.dist*2*Math.ceil(demand.quarterly_demand_reamining/10)+ production_cost_per_ton * demand.quarterly_demand_reamining))
+            if (profit.length > 1){
+                return profit[1] - profit[0]
+            } else {
+                return 1e9
             }
-        if (product_id == undefined){
-            return available_plants
-        } else {
-            return available_plants[product_id]
         }
-    }
-    demands_remaining(product_id){
-        if (product_id == undefined){
-            return customers.map(d=>d.demands)
-        } else {
-            return customers.map(d=>d.demands[product_id-1])
-        }
+        return sorted_demands
     }
 }
-scenarios = []
-scenarios.push(new Scenario('baseline', []))
-// scenarios.push(new Scenario('all_upgrade', [1,2,3,4]))
-scenarios.push(new Scenario('upgrade_123', [1,2,3]))
+
+class Demand {
+    constructor(product_id, customer_id, demand){
+        this.product_id = product_id
+        this.customer_id = customer_id
+        this.demand = demand
+        this.revenue = this.customer_id >= 40 ? 1200 : 1000
+        this.reset_quarterly()
+    }
+    reset_quarterly(){
+        this.quarterly_demand_reamining = this.demand / 4
+    }
+}
 
 // Establish classes for object-oriented programming approach
 class Customer {
@@ -38,23 +52,22 @@ class Customer {
         this.state = state
         this.lat = lat
         this.long = long
-        this.annual_demand = data.demand.filter(d=>d.customer_id==this.id).map(d=>+d.demand)
-        this.demands_remaining = [0, 0, 0, 0, 0]
+        this.demands = []
         this.dist_p2c = []
         this.dist_c2c = []
         this.reset_quarterly_demands()
     }
-    set annual_demands({product_id, demand}){
-        this.annual_demand[product_id-1] = demand
+    get annual_demands(){
+        this.demands.map(d=>d.demand)
     }
-    get demands(){
-        return this.demands_remaining
+    get demands_remaining(){
+        return this.demands.map(d=>d.quarterly_demand_reamining)
     }
     get customers_within_500(){
         return this.dist_c2c.filter(d=>d.dist <= 500).map(d=>d.customer_to)
     }
     reset_quarterly_demands(){
-        this.demands_remaining = this.annual_demand.map(d=>d/4)
+        this.demands.forEach(d=>d.reset_quarterly())
     }
     closest_plant(){
         return _.minBy(this.dist_p2c, d=>d.dist)
@@ -74,7 +87,6 @@ class Customer {
             return _.find(this.dist_c2c, d => d.customer_to == customer_id).dist
         }
     }
-
 }
 
 class Plant {
@@ -88,6 +100,8 @@ class Plant {
         this.current_product = this.id
         this.production_rate = this.id == 1 ? 100 : 50
         this.inventory = [0,0,0,0,0]
+        this.target_fulfillment = [0,0,0,0,0]
+        this.customer_serving = []
         this.reset_quarterly()
     }
     get customers_within_500(){
@@ -100,11 +114,10 @@ class Plant {
         return this.capacity
     }
     get production_cost_per_ton(){
-        var production_cost_per_ton = {1: 500, 2: 400, 3: 300, 4: 200, 5: 100}
-        return production_cost_per_ton[this.current_product]
+        return (6-this.current_product)*100
     }
     get utilization_rate(){
-        return d3.format(".2%")(this.quarterly_production / (this.production_rate * 8 * 90))
+        return d3.format(".2%")(this.quarterly_production / (this.production_rate * 8 * (90 - (this.setup_cost/5000) )))
     }
     reset_quarterly(){
         this.revenue = 0
@@ -115,6 +128,8 @@ class Plant {
         this.setup_days = 0
         this.overtime = false
         this.quarterly_production = 0
+        this.customer_serving = []
+        this.target_fulfillment = [0,0,0,0,0]
         this.capacity = {}
         data.capacity.filter(d=>d.plant_id == this.id).map(d=>{
             this.capacity[d.product_id] = d.capacity / 4
@@ -146,15 +161,14 @@ class Plant {
         if (this.setup_days>0){
             console.log(`Plant ${this.id} setting up to ${this.current_product}...`)
             this.setup_days -= 1
-        } else if(this.capacity[this.current_product] = 0){
+        } else if(this.capacity[this.current_product] <= 0){
             console.log(`Plant ${this.id} reached max capacity for Product ${this.current_product}`)
         } else {
-            //Only produce what's needed
-            var demands_remaining = _.sum(customers.map(d=>d.demands[this.current_product-1]))
 
             //Tons produced
-            var tons_made = Math.min(8*this.production_rate, demands_remaining)
+            var tons_made = Math.min(8*this.production_rate, this.target_fulfillment[this.current_product-1], this.capacity[this.current_product])
             this.quarterly_production += tons_made
+
             //Add produced items to inventory
             this.inventory[this.current_product-1] += tons_made
 
@@ -164,41 +178,43 @@ class Plant {
             //Reduce capacity
             this.capacity[this.current_product] -= tons_made
 
-
             if (this.overtime){
-                var overtime_production = Math.min(4*this.production_rate, demands_remaining)
+                var overtime_production = Math.min(4*this.production_rate, this.target_fulfillment[this.current_product-1], this.capacity[this.current_product])
+                this.quarterly_production += overtime_production
                 this.inventory[this.current_product-1] += overtime_production
                 this.production_cost += this.production_cost_per_ton * 1.5 * overtime_production
-                this.capacity[this.current_product] -= tons_made
-                this.quarterly_production += tons_made
+                this.capacity[this.current_product] -= overtime_production
+
             }
         }
     }
     deliver(){
         //Delivery
         //Find the closest target customer for that product
-        var customers_list = _.sortBy(customers, d=>d.get_distance_to_plants(this.id))
+        var customers_list = _.sortBy(customers.filter(d=>this.customer_serving.includes(d.id)), d=>d.get_distance_to_plants(this.id))
         for (let customer of customers_list){
 
             //Only deliver all of if done producing for that customer to prevent small shipment. subtract demand if delivered.
-            if (customer.demands[this.current_product-1] > this.inventory[this.current_product-1]){
+            if (customer.demands_remaining[this.current_product-1] > this.inventory[this.current_product-1]){
                 var fulfilled_tons = Math.floor(this.inventory[this.current_product-1] / 10) * 10
             } else {
-                var fulfilled_tons = customer.demands[this.current_product-1]
+                var fulfilled_tons = customer.demands_remaining[this.current_product-1]
             }
 
             //Remove from inventory
             this.inventory[this.current_product-1] -= fulfilled_tons
 
             //Remove from demands
-            customer.demands[this.current_product-1] -= fulfilled_tons
+            customer.demands_remaining[this.current_product-1] -= fulfilled_tons
 
+            //Remove form target fulfillment
+            this.target_fulfillment[this.current_product-1] -= fulfilled_tons
 
             var revenue_per_ton = customer.id >= 40 ? 1200 : 1000
             this.revenue += revenue_per_ton * fulfilled_tons
             this.transport_cost += Math.ceil(fulfilled_tons / 10) * 2 * customer.get_distance_to_plants(this.id)
             if (fulfilled_tons > 0){
-                // console.log(`From Plant ${this.id} fulfilled Customer ${customer.id} Product ${this.current_product} ${fulfilled_tons} tons` )
+                console.log(`From Plant ${this.id} fulfilled Customer ${customer.id} Product ${this.current_product} ${fulfilled_tons} tons` )
             }
         }
     }
@@ -212,7 +228,7 @@ var q = d3.queue()
           .defer(d3.csv, 'setup.csv')
           .defer(d3.csv, 'customers.csv')
           .defer(d3.csv, 'capacity.csv')
-          .defer(d3.csv, 'dist_c2c.csv')
+          .defer(d3.csv, 'dist_c2c.csv') 
           .defer(d3.csv, 'dist_p2c.csv')
           .await(ready)
 
@@ -230,349 +246,149 @@ function ready(error, demand_input, plants_input, products_input, setup_input, c
     data['dist_c2c'] = dist_c2c
     data['dist_p2c'] = dist_p2c
 
-    //Preprocessing
-    dist_p2c.forEach(d=>{
-        d.customer_id = +d.customer_id
-        d.plant_id = +d.plant_id
-        d.dist = +d.dist
-    })
+    preprocessing()
 
-    dist_c2c.forEach(d=>{
-        d.dist = +d.dist
-        d.customer_from = +d.customer_from
-        d.customer_to = +d.customer_to
-    })
-
-    customers = []
-    customers_input.forEach(d=>{
-        d.customer_id = +d.customer_id
-        d.lat = +d.lat
-        d.long = +d.long
-        var cust = new Customer(d.customer_id, d.city, d.state, d.lat, d.long)
-        cust.dist_p2c = dist_p2c.filter(v=>v.customer_id==d.customer_id) 
-        cust.dist_c2c = dist_c2c.filter(v=>v.customer_from==d.customer_id)
-        customers.push(cust)
-    })
-
-    plants = []
-    plants_input.forEach(d=>{
-        d.plant_id = +d.plant_id
-        d.lat = +d.lat
-        d.long = +d.long
-        var plant = new Plant(d.plant_id, d.city, d.state, d.lat, d.long)
-        plant.dist_p2c = dist_p2c.filter(v=>v.plant_id==d.plant_id)
-        plants.push(plant)
-    })
-    demand_input.forEach(d=>{
-        d.customer_id = +d.customer_id
-        d.product_id = +d.product_id
-        d.demand = +d.demand
-        d.revenue = +d.revenue
-    })
-
-    capacity_input.forEach(d=>{
-        d.plant_id = +d.plant_id
-        d.product_id = +d.product_id
-        d.capacity = +d.capacity
-        d.cost = +d.cost
-    })
-
-    setup_input.forEach(d=> {
-        d.from = +d.from
-        d.to = +d.to
-        d.days = +d.days
-    })
+    data['clusters'] = demand_covered()
+    data['after_warehouse_percent'] = iterate_combinations()
 
 
+function formatNum(number){
+    return d3.format(".5s")(number)
+}   
 
-    function total_demand(product_id){
-        return d3.format('.2f')(_.sum(data.demand.filter(d => d.product_id == product_id).map(d => d.demand)))
-    }
-    
-    function coverage_500(product_id){
-        var plant_id = product_id == 5 ? 4 : product_id
+scenarios = []
+// scenarios.push(new Scenario('all_upgrade', [1,2,3,4]))
 
-        //array of customers within 500 miles
-        var covered_customers = _.find(plants, (d=>d.id==plant_id)).customers_within_500
-
-        //Actual demand covered
-        var covered_demand = _.sum(data.demand.filter(d=>d.product_id == product_id && covered_customers.includes(d.customer_id)).map(d=>d.demand))
-
-        return covered_demand/total_demand(product_id)
-    }
-
- // Base
-    function demand_covered(){
-        dist_matrix = []
-        var dist_set = []
-        for (let customer of customers){
-            var temp = customer.get_distance_to_customers().sort((a,b)=>a.customer_to > b.customer_to).map(d => d.dist <= 500 ? 1 : 0)
-            dist_matrix.push(temp)
-            dist_set.push(customer.customers_within_500)
-        }
+// baseline scenario
+var baseline = new Scenario('baseline', [], {1: [1], 2: [2], 3: [3], 4: [4], 5: [4],})
+baseline.customers = _.cloneDeep(data.customers)
+baseline.demands = _.cloneDeep(data.demand)
+baseline.plants = _.cloneDeep(data.plants)
+scenarios.push(baseline)
 
 
-        //Find clusters that share the same coverage
-        clusters = []
-        same_list = new Set()
-        for (let i=0;i<49;i++){
-            for (let j=i+1;j<50;j++){
-                if ((_.isEqual(_.intersection(dist_set[i],dist_set[j]),dist_set[i])) || (_.isEqual(_.intersection(dist_set[i],dist_set[j]), dist_set[j]))){
-                    if (_.isEqual(dist_set[i], dist_set[j])){
-                        if (same_list.has(i+1)){
-                            var ind = clusters.findIndex(d=>d.has(i+1))
-                            clusters[ind].add(j+1)
-                        } else if (same_list.has(j+1)){
-                            var ind = clusters.findIndex(d=>d.has(j+1))
-                            clusters[ind].add(i+1)
+// Upgrading 123 scenario. 
+var upgrade_123 = new Scenario('upgrade_123', [1,2,3], {1: [1,2,3], 2: [1,2,3], 3: [1,2,3], 4: [4], 5: [4],}) 
+upgrade_123.customers = _.cloneDeep(data.customers)
+upgrade_123.demands = _.cloneDeep(data.demand)
+upgrade_123.plants = _.cloneDeep(data.plants)
+scenarios.push(upgrade_123)
 
-                        //Never seen
-                        } else {
-                            clusters.push(new Set([i+1, j+1]))
-                        }
-                        same_list.add(i+1)
-                        same_list.add(j+1)
-                    }
-                }
-            }
-        }
-    }
- 
-    function calculate_demand(warehouses){
-
-        //Set already covered customers' demands to 0        
-        var demand_list = []
-        for(let product=0;product<5;product++){
-            var plant = product == 4 ? plants[3] : plants[product]
-            var covered_customers = plant.customers_within_500
-            demand_list.push(data.demand.filter(d=>d.product_id == product + 1).map(d=>{
-                return covered_customers.includes(d.customer_id) ? 0 :d.demand
-            }))
-        }
-        var all_demand=math.matrix(demand_list)
-        var covered = math.multiply(dist_matrix, warehouses).map(d => d > 0 ? 1 : 0)
-        var output = math.multiply(all_demand, covered)._data
-        var output_percent = output.map((d,i)=>(d/total_demand(i+1)))
-        return [output, output_percent]
-    }
-
-    function getCombinations(array_in, size) {
-        function p(t, i) {
-            if (t.length === size) {
-                result.push(t);
-                return;
-            }
-            if (i + 1 > array_in.length) {
-                return;
-            }
-            p(t.concat(array_in[i]), i + 1);
-            p(t, i + 1);
-        }
-
-        var result = [];
-        p([], 0);
-        return result;
-    }
-
-    function iterate_combinations(){
-        //We should only consider
-        //[8, 35, 27, {4|25|26|33|39}, 12, 27, 14, 30, {5|6|16|17|34|41|49},
-        //{7|24|50}, 31, {13|47}, {2|28|36|43}]
-        //Because others are strictly dominated
-        // Of the identical sets, calculating mean distance shows which would be ideal
-        //So only consider the following
-        possible_customers = [8,35,25,12,27,14,30,5,24,31,13,2]
-        for (i=4;i<5;i++){
-            var permut = getCombinations(possible_customers, i)
-            for (let warehouse of permut){
-                var warehouses = Array(50).fill(0)
-                warehouse.forEach(i=>{
-                    warehouses[i-1]=1
-                });
-
-                //Target percentage is used, because of baseline coverage from the plants
-                var target_percentage = [.7115, .5732, .5257, .752, .7429]
-                var output = calculate_demand(warehouses)[0]
-                var output_percent = calculate_demand(warehouses)[1]
-                if (output_percent.filter((d,i)=>d>=target_percentage[i]).length == 5 && _.sum(output)>338000){
-                    // console.log(warehouse, _.sum(output), output_percent)
-                    after_warehouse_percentage = output_percent
-                }
-            }
-        }
-        return
-    }
-
-    function calculate_demand_cost(customer_id){
-        customers_to_be_served = _.find(customers, d=>d.id == customer_id).customers_within_500
-        var weighted_cost = 0
-        for (let customer of customers_to_be_served){
-            demand_served = _.sum(data.demand.filter(d=>d.customer_id==customer).map(d=>d.demand))
-            distance = data.dist_c2c.filter(d=> (d.customer_to==customer) && (d.customer_from ==customer_id)).map(d=>d.dist)[0]
-            weighted_cost += Math.ceil(demand_served/10)* distance * 2 
-        }
-        return weighted_cost
-    }
-
-    function decide_city_within_cluster(){
-        clusters.forEach((cluster, i)=>{
-            var min_customer = -1
-            var cost = 1e10
-            for (let customer of cluster){
-                if (cost > calculate_demand_cost(customer)){
-                    min_customer = customer
-                    cost = calculate_demand_cost(customer)
-                }
-            }
-        // console.log(cluster, min_customer)
-        })
-    }
-    // decide_city_within_cluster()
-    demand_covered()
-    iterate_combinations()
-
-  
-
-//Given the start product and possible products to cycle through, give the shortest cycle days to transition through and return to normal
-function best_cycling_products(start_product, possible_products){
-    function permute(input_array) {
-      var i, ch;
-      for (i = 0; i < input_array.length; i++) {
-        ch = input_array.splice(i, 1)[0];
-        usedChars.push(ch);
-        if (input_array.length == 0) {
-          permArr.push(usedChars.slice());
-        }
-        permute(input_array);
-        input_array.splice(i, 0, ch);
-        usedChars.pop();
-      }
-      return permArr
-    };
-
-    function setup_cost(from, to){
-        return _.find(data.setup, d=>d.from==from && d.to==to).days
-    }
-        var permArr = []
-        var usedChars = []
-
-        var permut_input = possible_products
-        permut_input.splice(possible_products.indexOf(start_product),1)
-        var permutations = permute(permut_input)
-        var cost = 1000
-        var best_candidate = []
-        for (let cycle of permutations){
-            // Iterate through all possible permutations of cycle to get the best cycling
-            var temp_cost = setup_cost(start_product,cycle[0])
-            for (let i=0; i<cycle.length-1;i++){
-                temp_cost += setup_cost(cycle[i],cycle[i+1])
-            }
-
-            temp_cost += setup_cost(cycle[cycle.length-1],start_product)
-            if (cost > temp_cost){
-                cost = temp_cost
-                best_candidate = cycle
-            }
-        }
-    console.log(start_product, best_candidate, cost)
-}
-best_cycling_products(3,[1,2,3])
 
     function simulate_fulfillment(scenario){
         //4 quarters. 5 Products. 4 Plants.
-        q_profit = {}
-
-        scenario.profit = 0
-        scenario.transport_cost = 0
-        scenario.revenue = 0
-        scenario.production_cost = 0
-        scenario.setup_cost = 0
-        for (let quarter=1;quarter<=4;quarter++){
+        for (let quarter=1;quarter<=1;quarter++){
             //reset customer demand and plant conditions
             for (let customer of customers){
-                customer.reset_quarterly_demands()
+                // customer.reset_quarterly_demands()
             }
             for (let plant of plants){
                 plant.reset_quarterly()                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
             }
+            // Need to determine optimal allocation of product 1,2,3 inventory among plant 1,2,3 for all 50 customers
+            if (scenario.name == 'baseline'){
+                for (let plant_id of [1,2,3,4]){
+                    plants[plant_id-1].customer_serving = _.range(1,51)
+                }
+                plants[0].target_fulfillment[0] = _.sum(customers.map(d=>d.demands_remaining[0]))
+                plants[1].target_fulfillment[1] = _.sum(customers.map(d=>d.demands_remaining[1]))
+                plants[2].target_fulfillment[2] = _.sum(customers.map(d=>d.demands_remaining[2]))
+                plants[3].target_fulfillment[3] = _.sum(customers.map(d=>d.demands_remaining[3]))
+                plants[3].target_fulfillment[4] = _.sum(customers.map(d=>d.demands_remaining[4]))
+
+            } else if (scenario.name =='upgrade_123'){
+                customers.forEach(customer=>{
+                    //Nearest plant out of 1, 2, 3
+                    var nearest_plant = _.sortBy(customer.get_distance_to_plants().filter(d=>[1,2,3].includes(d.plant_id)),d=>d.dist).map(d=>d.plant_id)[0]
+                    plants[nearest_plant-1].customer_serving.push(customer.id)
+                    plants[nearest_plant-1].target_fulfillment[0] += customer.demands_remaining[0]
+                    plants[nearest_plant-1].target_fulfillment[1] += customer.demands_remaining[1]
+                    plants[nearest_plant-1].target_fulfillment[2] += customer.demands_remaining[2]
+
+                    //plant 4 fulfills everyone
+                    plants[3].customer_serving = _.range(1,51)  
+                    plants[3].target_fulfillment[3] += customer.demands_remaining[3]
+                    plants[3].target_fulfillment[4] += customer.demands_remaining[4]
+                })
+            }
+
             //Simulate each day
             for (let day=1;day<=90;day++){
                 // console.log(`day ${day+90*(quarter-1)}`)
-
                 //baseline scenario. There's no switching, except when plant 4 is done making and meeting product 4 demands. Overtime is required for plant 1 for 5 days each
                 if (scenario.name =='baseline'){
                     // Plant 1 needs to run overtime for five days, assuming only four hours of overtime per day is available.
                     if (day>=86 && plants[0].overtime == false){
                         plants[0].work_overtime()
                     }
-                    //If plant 3 fulfilled product 4 demand, switch to 5
-                    if (_.sum(scenario.demands_remaining(4)) == 0 && _.sum(scenario.demands_remaining(5)) > 0 && plants[3].current_product == 4 && [1,3].includes(quarter)){
-                        plants[3].switch_product(5)
-                    }
-                    //Once plant 3 finishes fulfilling product 5 demand, switch back to product 4
-                    if (_.sum(scenario.demands_remaining(5)) == 0 && _.sum(scenario.demands_remaining(4)) > 0 && plants[3].current_product == 5 && [2,4].includes(quarter)){
-                        plants[3].switch_product(4)
-                    }
-                    plants[0].produce()
-                    plants[1].produce()
-                    plants[2].produce()
-                    plants[3].produce()
-                    plants[0].deliver()
-                    plants[1].deliver()
-                    plants[2].deliver()
-                    plants[3].deliver()
+                    // //If plant 3 fulfilled product 4 demand, switch to 5
+                    // if (_.sum(scenario.demands_remaining(4)) == 0 && _.sum(scenario.demands_remaining(5)) > 0 && plants[3].current_product == 4 && [1,3].includes(quarter)){
+                    //     plants[3].switch_product(5)
+                    // }
+                    // //Once plant 3 finishes fulfilling product 5 demand, switch back to product 4
+                    // if (_.sum(scenario.demands_remaining(5)) == 0 && _.sum(scenario.demands_remaining(4)) > 0 && plants[3].current_product == 5 && [2,4].includes(quarter)){
+                    //     plants[3].switch_product(4)
+                    // }
+                    // plants[0].produce()
+                    // plants[1].produce()
+                    // plants[2].produce()
+                    // plants[3].produce()
+                    // plants[2].deliver()
+                    // plants[1].deliver()
+                    // plants[3].deliver()
+                    // plants[0].deliver()
 
                 // Keep plant 4 and product 4/5 fulfilment strategy the same as baseline.
                 // Switching from 3 to 2/4 or 2 to 3/4 is costly, so it would be 2 to 1 and back to 2. Same for 3
                 } else if (scenario.name == 'upgrade_123'){
-                    //If plant 3 fulfilled product 4 demand, switch to 5
-                    if (_.sum(scenario.demands_remaining(4)) == 0 && _.sum(scenario.demands_remaining(5)) > 0 && plants[3].current_product == 4 && [1,3].includes(quarter)){
-                        plants[3].switch_product(5)
+                    if (day==1 && plants[2].overtime == false){
+                        plants[2].work_overtime()
                     }
-                    //Once plant 3 finishes fulfilling product 5 demand, switch back to product 4
-                    if (_.sum(scenario.demands_remaining(5)) == 0 && _.sum(scenario.demands_remaining(4)) > 0 && plants[3].current_product == 5 && [2,4].includes(quarter)){
-                        plants[3].switch_product(4)
-                    }
+                    // //If plant 3 fulfilled product 4 demand, switch to 5
+                    // if (_.sum(scenario.demands_remaining(4)) == 0 && _.sum(scenario.demands_remaining(5)) > 0 && plants[3].current_product == 4 && [1,3].includes(quarter)){
+                    //     plants[3].switch_product(5)
+                    // }
+                    // //Once plant 3 finishes fulfilling product 5 demand, switch back to product 4
+                    // if (_.sum(scenario.demands_remaining(5)) == 0 && _.sum(scenario.demands_remaining(4)) > 0 && plants[3].current_product == 5 && [2,4].includes(quarter)){
+                    //     plants[3].switch_product(4)
+                    // }
 
-                    if (_.sum(scenario.demands_remaining(2)) == 0 && _.sum(scenario.demands_remaining(1)) > 0 && plants[1].current_product == 2){
-                        plants[1].switch_product(1)
-                    }
-                    if (_.sum(scenario.demands_remaining(3)) == 0 && _.sum(scenario.demands_remaining(1)) > 0 && plants[2].current_product == 3){
-                        plants[2].switch_product(1)
-                    }
+                    //Cycle through
+                    // for (let plant of [0,1,2]){
+                    //     if ((plants[plant].capacity[1]<=0 ||plants[plant].target_fulfillment[0] == 0) && plants[plant].target_fulfillment[1] > 0 && plants[plant].current_product == 1){
+                    //         plants[plant].switch_product(2)
+                    //     }
+                    //     if ((plants[plant].capacity[2]<=0 ||plants[plant].target_fulfillment[1] == 0) && plants[plant].target_fulfillment[2] > 0 && plants[plant].current_product == 2){
+                    //         plants[plant].switch_product(3)
+                    //     }
+                    //     if ((plants[plant].capacity[3]<=0 ||plants[plant].target_fulfillment[2] == 0) && plants[plant].target_fulfillment[0] > 0 && plants[plant].current_product == 3){
+                    //         plants[plant].switch_product(1)
+                    //     }
+                    // }
 
-                    if (_.sum(scenario.demands_remaining(2)) > 0 && _.sum(scenario.demands_remaining(1)) == 0 && plants[1].current_product == 1){
-                        plants[1].switch_product(2)
-                    }
-                    if ( _.sum(scenario.demands_remaining(3)) > 0 && _.sum(scenario.demands_remaining(1)) == 0 && plants[2].current_product == 1){
-                        plants[2].switch_product(3)
-                    }
-
-                    plants[0].produce()
-                    plants[1].produce()
-                    plants[2].produce()
-                    plants[3].produce()
-                    plants[2].deliver()
-                    plants[1].deliver()
-                    plants[3].deliver()
-                    plants[0].deliver()
-
+                    // plants[0].produce()
+                    // plants[1].produce()
+                    // plants[2].produce()
+                    // plants[3].produce()
+                    // plants[2].deliver()
+                    // plants[1].deliver()
+                    // plants[3].deliver()
+                    // plants[0].deliver()
                 }
             }
-            console.log('remaining',customers.map(d=>d.demands))
 
             //check if there is any demand unmet in this quarter. If that's the case, the scenario failed.
             console.log(`Remaining demands at the end of Q${quarter}
-                    Product 1: ${d3.format(".2f")(_.sum(customers.map(d=>d.demands[0])))}
-                    Product 2: ${d3.format(".2f")(_.sum(customers.map(d=>d.demands[1])))}
-                    Product 3: ${d3.format(".2f")(_.sum(customers.map(d=>d.demands[2])))}
-                    Product 4: ${d3.format(".2f")(_.sum(customers.map(d=>d.demands[3])))}
-                    Product 5: ${d3.format(".2f")(_.sum(customers.map(d=>d.demands[4])))}
-                    Utilization Rate
-                    Plant 1: ${plants[0].utilization_rate}
-                    Plant 2: ${plants[1].utilization_rate}
-                    Plant 3: ${plants[2].utilization_rate}
-                    Plant 4: ${plants[3].utilization_rate}
+                    Product 1: ${d3.format(".2f")(_.sum(customers.map(d=>d.demands_remaining[0])))}
+                    Product 2: ${d3.format(".2f")(_.sum(customers.map(d=>d.demands_remaining[1])))}
+                    Product 3: ${d3.format(".2f")(_.sum(customers.map(d=>d.demands_remaining[2])))}
+                    Product 4: ${d3.format(".2f")(_.sum(customers.map(d=>d.demands_remaining[3])))}
+                    Product 5: ${d3.format(".2f")(_.sum(customers.map(d=>d.demands_remaining[4])))}
+                    Utilization Rate /  Production Cost / Transportation Cost 
+                    Plant 1: ${plants[0].utilization_rate} / ${formatNum(plants[0].production_cost)} / ${formatNum(plants[0].transport_cost)}
+                    Plant 2: ${plants[1].utilization_rate} / ${formatNum(plants[1].production_cost)} / ${formatNum(plants[1].transport_cost)}
+                    Plant 3: ${plants[2].utilization_rate} / ${formatNum(plants[2].production_cost)} / ${formatNum(plants[2].transport_cost)}
+                    Plant 4: ${plants[3].utilization_rate} / ${formatNum(plants[3].production_cost)} / ${formatNum(plants[3].transport_cost)}
                     `)
 
             scenario.total_q_profit = 0
@@ -600,9 +416,7 @@ best_cycling_products(3,[1,2,3])
 
     for (let scenario of scenarios){
         simulate_fulfillment(scenario)
-        function formatNum(number){
-            return d3.format(".5s")(number)
-        }
+
         console.log(`Scenario ${scenario.name}
             Profit: ${formatNum(scenario.profit)} 
             Revenue: ${formatNum(scenario.revenue)} 
@@ -667,7 +481,7 @@ best_cycling_products(3,[1,2,3])
         .html(function(product_id){
             return 'Product '+ product_id+ 
                 ' / Total Q Demand: '+total_demand(product_id) / 4 +
-                 ' / 500-mile Coverage: '+d3.format(".2%")(coverage_500(product_id)) + ' / With warehouses: '+d3.format(".2%")(after_warehouse_percentage[product_id-1]+coverage_500(product_id)) +'<br>'
+                 ' / 500-mile Coverage: '+d3.format(".2%")(coverage_500(product_id)) + ' / With warehouses: '+d3.format(".2%")(data.after_warehouse_percent[product_id-1]+coverage_500(product_id)) +'<br>'
                 })
 
     var svg = d3.select("body").append("svg"),
@@ -679,8 +493,8 @@ best_cycling_products(3,[1,2,3])
 
     var tip = d3.tip().attr("class", "d3-tip").html(
         function(d){
-        var customer = _.find(customers, customer => customer.id == d.customer_id)
-        return "Customer "+customer.id+"<br>"+
+        var customer = _.find(data.customers, customer => customer.customer_id == d.customer_id)
+        return "Customer "+customer.customer_id+"<br>"+
                 customer.city+","+customer.state+"<br>"+
                 d.demand +' tons'
                         }
@@ -782,15 +596,24 @@ best_cycling_products(3,[1,2,3])
     x2 = d3.scaleLinear().rangeRound([0+100, width2 - 100])
     y2 = d3.scaleLinear().rangeRound([height2 - 100, 0+100])
 
-    x2.domain(d3.extent(customers.map(d=>d.long)))
-    y2.domain(d3.extent(customers.map(d=>d.lat)))
+    x2.domain(d3.extent(data.customers.map(d=>d.long)))
+    y2.domain(d3.extent(data.customers.map(d=>d.lat)))
     
     var tip_circle = d3.tip().attr("class", "d3-tip").html(
         function(d){
-         return "Customer "+d.id+"<br>"+
-                d.city+","+d.state+"<br>"
-                        }
-        )
+        return `Customer ${d.customer_id} <br>
+                ${d.city} ${d.state} <br>
+                Product 1: ${d3.format(".2f")(_.find(data.demand, v=>v.customer_id==d.customer_id && v.product_id == 1).demand)} <br>
+                Product 2: ${d3.format(".2f")(_.find(data.demand, v=>v.customer_id==d.customer_id && v.product_id == 2).demand)} <br>
+                Product 3: ${d3.format(".2f")(_.find(data.demand, v=>v.customer_id==d.customer_id && v.product_id == 3).demand)} <br>
+                Product 4: ${d3.format(".2f")(_.find(data.demand, v=>v.customer_id==d.customer_id && v.product_id == 4).demand)} <br>
+                Product 5: ${d3.format(".2f")(_.find(data.demand, v=>v.customer_id==d.customer_id && v.product_id == 5).demand)} <br>
+                Plant 1: ${d3.format(".2f")(_.find(data.dist_p2c, v=>v.customer_id==d.customer_id && v.plant_id == 1).dist)} <br>
+                Plant 2: ${d3.format(".2f")(_.find(data.dist_p2c, v=>v.customer_id==d.customer_id && v.plant_id == 2).dist)} <br>
+                Plant 3: ${d3.format(".2f")(_.find(data.dist_p2c, v=>v.customer_id==d.customer_id && v.plant_id == 3).dist)} <br>
+                Plant 4: ${d3.format(".2f")(_.find(data.dist_p2c, v=>v.customer_id==d.customer_id && v.plant_id == 4).dist)} <br>
+                `
+        })
     d3.json("us-states.json", (error, json)=>{
         if (error) throw error
         svg2.selectAll("path")
@@ -802,32 +625,31 @@ best_cycling_products(3,[1,2,3])
             .style("opacity", 0.3)
 
         svg2.selectAll("circle")
-            .data(customers)
+            .data(data.customers)
             .enter()
             .append("circle")
             .attr("cx", function(d){return projection([d.long, d.lat])[0]})
             .attr("cy", function(d){return projection([d.long, d.lat])[1]})
             .attr("r", 3)
             .style("fill", "steelblue")
-            .attr("id", d=>"circle_"+d.id)
+            .attr("id", d=>"circle_"+d.customer_id)
             .on('mouseover', tip_circle.show)
             .on('mouseout', tip_circle.hide)
 
         svg2.selectAll("text.plant")
-            .data(plants)
+            .data(data.plants)
             .enter()
             .append("text")
             .attr("class", "plant")
             .attr("x", function(d){return projection([d.long, d.lat])[0]})
             .attr("y", function(d){return projection([d.long, d.lat])[1]})
-            .text(function(d){return d.id})
+            .text(function(d){return d.plant_id})
             .style("cursor", "default")
             .style("font-size", "10px")
 
         svg2.call(tip_circle)
-
         svg2.selectAll("text.cluster")
-            .data(clusters)
+            .data(data.clusters)
             .enter()
             .append("text")
             .attr("class", "cluster")
@@ -854,4 +676,248 @@ best_cycling_products(3,[1,2,3])
         }
     })
 
+
+    function demand_covered(){
+        var dist_set = []
+        for (let customer of data.customers){
+            var temp = data.dist_c2c.filter(d=>d.dist <= 500 && d.customer_from == customer.customer_id).map(d=>d.customer_to)
+            dist_set.push(temp)
+        }
+        //Find clusters that share the same coverage
+        var clusters = []
+        same_list = new Set()
+        for (let i=0;i<49;i++){
+            for (let j=i+1;j<50;j++){
+                if ((_.isEqual(_.intersection(dist_set[i],dist_set[j]),dist_set[i])) || (_.isEqual(_.intersection(dist_set[i],dist_set[j]), dist_set[j]))){
+                    if (_.isEqual(dist_set[i], dist_set[j])){
+                        if (same_list.has(i+1)){
+                            var ind = clusters.findIndex(d=>d.has(i+1))
+                            clusters[ind].add(j+1)
+                        } else if (same_list.has(j+1)){
+                            var ind = clusters.findIndex(d=>d.has(j+1))
+                            clusters[ind].add(i+1)
+
+                        //Never seen
+                        } else {
+                            clusters.push(new Set([i+1, j+1]))
+                        }
+                        same_list.add(i+1)
+                        same_list.add(j+1)
+                    }
+                }
+            }
+        }
+        return clusters
+    }
+
+
+    function total_demand(product_id){
+        return d3.format('.2f')(_.sum(data.demand.filter(d => d.product_id == product_id).map(d => d.demand)))
+    }
+    
+    function coverage_500(product_id){
+        var plant_id = product_id == 5 ? 4 : product_id
+
+        //array of customers within 500 miles
+        var covered_customers = data.dist_p2c.filter(d=>d.dist <= 500 && d.plant_id == plant_id).map(d=>d.customer_id)
+
+        //Actual demand covered
+        var covered_demand = _.sum(data.demand.filter(d=>d.product_id == product_id && covered_customers.includes(d.customer_id)).map(d=>d.demand))
+
+        return covered_demand/total_demand(product_id)
+    }
+
+    function calculate_demand(warehouses){
+
+        //Set already covered customers' demands to 0        
+        var demand_list = []
+        for(let product=1;product<=5;product++){
+            var plant_id = product == 5 ? 4 : product
+            var covered_customers = data.dist_p2c.filter(d=>d.dist<=500 && d.plant_id == plant_id).map(d=>d.customer_id)
+            demand_list.push(data.demand.filter(d=>d.product_id == product).map(d=>{
+                return covered_customers.includes(d.customer_id) ? 0 :d.demand
+            }))
+        }
+        var dist_matrix = []
+        for (let customer of data.customers){
+            var temp = data.dist_c2c.filter(d=>d.customer_from==customer.customer_id).sort((a,b)=>a.customer_to > b.customer_to).map(d => d.dist <= 500 ? 1 : 0)
+            dist_matrix.push(temp)
+        }
+        var all_demand=math.matrix(demand_list)
+        var covered = math.multiply(dist_matrix, warehouses).map(d => d > 0 ? 1 : 0)
+        var output = math.multiply(all_demand, covered)._data
+        var output_percent = output.map((d,i)=>(d/total_demand(i+1)))
+        return [output, output_percent]
+    }
+
+    function getCombinations(array_in, size) {
+        function p(t, i) {
+            if (t.length === size) {
+                result.push(t);
+                return;
+            }
+            if (i + 1 > array_in.length) {
+                return;
+            }
+            p(t.concat(array_in[i]), i + 1);
+            p(t, i + 1);
+        }
+
+        var result = [];
+        p([], 0);
+        return result;
+    }
+    function iterate_combinations(){
+        //We should only consider
+        //[8, 35, 27, {4|25|26|33|39}, 12, 27, 14, 30, {5|6|16|17|34|41|49},
+        //{7|24|50}, 31, {13|47}, {2|28|36|43}]
+        //Because others are strictly dominated
+        // Of the identical sets, calculating mean distance shows which would be ideal
+        //So only consider the following
+        possible_customers = [8,35,25,12,27,14,30,5,24,31,13,2]
+        for (i=4;i<5;i++){
+            var permut = getCombinations(possible_customers, i)
+            for (let warehouse of permut){
+                var warehouses = Array(50).fill(0)
+                warehouse.forEach(i=>{
+                    warehouses[i-1]=1
+                });
+
+                //Target percentage is used, because of baseline coverage from the plants
+                var target_percentage = [.7115, .5732, .5257, .752, .7429]
+                var output = calculate_demand(warehouses)[0]
+                var output_percent = calculate_demand(warehouses)[1]
+                if (output_percent.filter((d,i)=>d>=target_percentage[i]).length == 5 && _.sum(output)>338000){
+                    // console.log(warehouse, _.sum(output), output_percent)
+                    after_warehouse_percentage = output_percent
+                }
+            }
+        }
+        return after_warehouse_percentage
+    }
+
+    function calculate_demand_cost(customer_id){
+        customers_to_be_served = _.find(customers, d=>d.id == customer_id).customers_within_500
+        var weighted_cost = 0
+        for (let customer of customers_to_be_served){
+            demand_served = _.sum(data.demand.filter(d=>d.customer_id==customer).map(d=>d.demand))
+            distance = data.dist_c2c.filter(d=> (d.customer_to==customer) && (d.customer_from ==customer_id)).map(d=>d.dist)[0]
+            weighted_cost += Math.ceil(demand_served/10)* distance * 2 
+        }
+        return weighted_cost
+    }
+
+    function decide_city_within_cluster(clusters){
+        clusters.forEach((cluster, i)=>{
+            var min_customer = -1
+            var cost = 1e10
+            for (let customer of cluster){
+                if (cost > calculate_demand_cost(customer)){
+                    min_customer = customer
+                    cost = calculate_demand_cost(customer)
+                }
+            }
+        // console.log(cluster, min_customer)
+        })
+    }
+    // decide_city_within_cluster(clusters)
+
+    //Given the start product and possible products to cycle through, give the shortest cycle days to transition through and return to normal
+    function best_cycling_products(start_product, possible_products){
+        function permute(input_array) {
+          var i, ch;
+          for (i = 0; i < input_array.length; i++) {
+            ch = input_array.splice(i, 1)[0];
+            usedChars.push(ch);
+            if (input_array.length == 0) {
+              permArr.push(usedChars.slice());
+            }
+            permute(input_array);
+            input_array.splice(i, 0, ch);
+            usedChars.pop();
+          }
+          return permArr
+        };
+
+        function setup_cost(from, to){
+            return _.find(data.setup, d=>d.from==from && d.to==to).days
+        }
+            var permArr = []
+            var usedChars = []
+
+            var permut_input = possible_products
+            permut_input.splice(possible_products.indexOf(start_product),1)
+            var permutations = permute(permut_input)
+            var cost = 1000
+            var best_candidate = []
+            for (let cycle of permutations){
+                // Iterate through all possible permutations of cycle to get the best cycling
+                var temp_cost = setup_cost(start_product,cycle[0])
+                for (let i=0; i<cycle.length-1;i++){
+                    temp_cost += setup_cost(cycle[i],cycle[i+1])
+                }
+
+                temp_cost += setup_cost(cycle[cycle.length-1],start_product)
+                if (cost > temp_cost){
+                    cost = temp_cost
+                    best_candidate = cycle
+                }
+            }
+        console.log(start_product, best_candidate, cost)
+    }
+    // best_cycling_products(3,[1,2,3])
+
+    function preprocessing(){     
+        dist_p2c.forEach(d=>{
+            d.customer_id = +d.customer_id
+            d.plant_id = +d.plant_id
+            d.dist = +d.dist
+        })
+
+        dist_c2c.forEach(d=>{
+            d.dist = +d.dist
+            d.customer_from = +d.customer_from
+            d.customer_to = +d.customer_to
+        })
+
+        customers = []
+        customers_input.forEach(d=>{
+            d.customer_id = +d.customer_id
+            d.lat = +d.lat
+            d.long = +d.long
+            var cust = new Customer(d.customer_id, d.city, d.state, d.lat, d.long)
+            cust.dist_p2c = dist_p2c.filter(v=>v.customer_id==d.customer_id) 
+            cust.dist_c2c = dist_c2c.filter(v=>v.customer_from==d.customer_id)
+        })
+
+        plants = []
+        plants_input.forEach(d=>{
+            d.plant_id = +d.plant_id
+            d.lat = +d.lat
+            d.long = +d.long
+            var plant = new Plant(d.plant_id, d.city, d.state, d.lat, d.long)
+            plant.dist_p2c = dist_p2c.filter(v=>v.plant_id==d.plant_id)
+            plants.push(plant)
+        })
+
+        demand_input.forEach(d=>{
+            d.customer_id = +d.customer_id
+            d.product_id = +d.product_id
+            d.demand = +d.demand
+            d.revenue = +d.revenue
+        })
+
+        capacity_input.forEach(d=>{
+            d.plant_id = +d.plant_id
+            d.product_id = +d.product_id
+            d.capacity = +d.capacity
+            d.cost = +d.cost
+        })
+
+        setup_input.forEach(d=> {
+            d.from = +d.from
+            d.to = +d.to
+            d.days = +d.days
+        })
+    }
 }
