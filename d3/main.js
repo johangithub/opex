@@ -772,7 +772,7 @@ upgrade_13.plants = _.cloneDeep(plants)
                 var warehouses = Array(50).fill(0)
                 warehouse.forEach(i=>{
                     warehouses[i-1]=1
-                });
+                })
 
                 //Target percentage is used, because of baseline coverage from the plants
                 var result = calculate_demand(warehouses)
@@ -823,15 +823,15 @@ upgrade_13.plants = _.cloneDeep(plants)
         }
         var total_profit = total_revenue - total_production_cost - total_transport_cost - 40e6
         console.log(`Total Revenue is fixed at ${formatNum(total_revenue)}`)
+        console.log(`Total Production cost with no overtime is fixed at ${formatNum(total_production_cost)}`)
         console.log(`Theoretical minimum transport cost is ${formatNum(total_transport_cost)}`)
-        console.log(`Total Production cost with no overtime is ${formatNum(total_production_cost)}`)
+        console.log(`Theoretical Profit: ${formatNum(total_revenue-total_production_cost-total_transport_cost)} (no upgrade, setup, overtime)`)
         console.log(`With plants producing`)
         console.log(`Plant 1: ${formatNum(demand_per_plant[0])} with ${Math.ceil(demand_per_plant[0]/800)} regular working days / year`)
         console.log(`Plant 2: ${formatNum(demand_per_plant[1])} with ${Math.ceil(demand_per_plant[1]/400)} regular working days / year`)
         console.log(`Plant 3: ${formatNum(demand_per_plant[2])} with ${Math.ceil(demand_per_plant[2]/400)} regular working days / year`)
         console.log(`Plant 4: ${formatNum(demand_per_plant[3])} with ${Math.ceil(demand_per_plant[3]/400)} regular working days / year`)
-        console.log(`With all plants upgraded, theoretical max profit is ${formatNum(total_profit)}`)
-
+        console.log(`With all plants upgraded, max profit with theoretical minimum transport cost and no setup cost is ${formatNum(total_profit)}`)
     }
     calculate_theoretical_max_profit()
 
