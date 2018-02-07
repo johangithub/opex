@@ -1,114 +1,132 @@
-<!-- Source: https://bl.ocks.org/mbostock/3231298 -->
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
 
-<!DOCTYPE html>
-<meta charset="utf-8">
+        <title>Opex.</title>
+        <meta name="description" content="Presentation for Opex Supply Chain Case Study">
+        <meta name="author" content="Joe Han">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
-<body>
-<script src="https://d3js.org/d3.v3.min.js"></script>
-<script>
+        <link rel="stylesheet" href="css/reveal.css">
+        <link rel="stylesheet" href="css/theme/black.css" id="theme">
 
-var width = 960,
-    height = 700;
+        <!-- Theme used for syntax highlighting of code -->
+        <link rel="stylesheet" href="lib/css/zenburn.css">
 
+        <!-- Printing and PDF exports -->
+        <script>
+            var link = document.createElement( 'link' );
+            link.rel = 'stylesheet';
+            link.type = 'text/css';
+            link.href = window.location.search.match( /print-pdf/gi ) ? 'css/print/pdf.css' : 'css/print/paper.css';
+            document.getElementsByTagName( 'head' )[0].appendChild( link );
+        </script>
+        <!--[if lt IE 9]>
+        <script src="lib/js/html5shiv.js"></script>
+        <![endif]-->
+    </head>
 
+    <body>
+        <div class="reveal">
+            <div class="slides">
+                <section>
+                    <h3>Opex Case Study 
+                    <p>
+                    <small>Optimizing Supply Chain</small>
+                    <br>
+                        <small>Joe Han</small>
+                    </p>
+                </section>
+                <section>
+                    <h3>Overview</h3>
+                    <ol>
+                        <ul>Problem Summary</ul>
+                        <ul>Solution</ul>
+                        <ul>Explanation</ul>
+                    </ol>
+                </section>
+                <section>
+                    <h3>Problem Summary</h3>
+                    <p style="text-align: left">With 4 plants, 50 customers, and 5 products to deliver to each customers throughout the US:</p>
+                    <ol>
+                        <li>Find the minimum number of warehouses to achieve 80% of 500-mile coverage for all customers</li>
+                        <li>Find optimal allocation of resources in producing and delivering products that maximizes profit with an option to upgrade plants</li>
+                    </ol>
+                </section>
+                <section>
+                    <h6>Problem 1 Solution</h6>
+                    <!-- <div style="position: relative"> -->
+                    <p style="text-align: left">Place 4 warehouses in customer locations 5(Dallas,TX), 8(Boise,ID), 31(Pittsburgh,PA), 39(City of Industry,CA)</p>
+                    <p class="fragment fade-out" style="position:absolute; text-align: left" data-fragment-index="0">
+                    Baseline Cost and 500-mile Coverage <br>
+                    Transportation Cost: $98.94M<br>
+                    Product 1: 8.85%<br>
+                    Product 2: 22.68%<br>
+                    Product 3: 7.43%<br>
+                    Product 4: 4.80%<br>
+                    Product 5: 5.71%<br>
+                    </p>
+                    <p class="fragment fade-in" style="position:absolute; text-align: left" data-fragment-index="0">
+                    With Warehouses Cost and 500-mile Coverage<br>
+                    Transportation Cost: $108.24M  (<a style="color: red">+$9.30M</a>)<br>
+                    Product 1: 84.8% (<a style="color: green">+75.95%</a>)<br>
+                    Product 2: 80.94% (<a style="color: green">+58.26%</a>)<br>
+                    Product 3: 90.1% (<a style="color: green">+82.67%</a>)<br>
+                    Product 4: 87.35% (<a style="color: green">+82.55%</a>)<br>
+                    Product 5: 92.01% (<a style="color: green">+86.3%</a>)<br>
+                    </p>
+                    <!-- </div> -->
 
-var nodes = d3.range(200).map(function() { return {radius: Math.random() * 12 + 4}; }),
-    root = nodes[0],
-    color = d3.scale.category10();
+                </section>
+                <section data-external="barchart.html"></section>
 
-root.radius = 0;
-root.fixed = true;
+            </div>
+        </div>
 
-var force = d3.layout.force()
-    .gravity(0.05)
-    .charge(function(d, i) { return i ? 0 : -2000; })
-    .nodes(nodes)
-    .size([width, height]);
+        <script src="lib/js/head.min.js"></script>
+        <script src="js/reveal.js"></script>
+        
+        <script src="js/d3.v4.min.js"></script>
+        <script src="js/d3.tip.js"></script>
+        <script src="js/lodash.min.js"></script>
+        <script src="js/math.min.js"></script>
 
-force.start();
+        <!--Load Data  -->
+        <script src="data/demand.js"></script>
+        <script src="data/customers.js"></script>
+        <script src="data/dist_c2c.js"></script>
+        <script src="data/dist_p2c.js"></script>
+        <script src="data/plants.js"></script>
+        <script src="data/products.js"></script>
+        <script src="data/setup.js"></script>
+        <script src="data/capacity.js"></script>
 
-var svg = d3.select("body").append("div").append("svg")
-    // Scalable svg 
-    .attr('viewBox','0 0 ' + width + ' ' + height)
-    .attr('preserveAspectRatio','xMidYMid meet')
-    .style("width", '98%')
-    .style("height", '98%')
-    .style("display", "block")
-    .style("position", "absolute");
+        <!-- Main d3 script -->
+        <script src="js/main.js"></script>
 
-svg.selectAll("circle")
-    .data(nodes.slice(1))
-  .enter().append("circle")
-    .attr("r", function(d) { return d.radius; })
-    .style("fill", function(d, i) { return color(i % 3); });
+        <script>
 
-force.on("tick", function(e) {
-  var q = d3.geom.quadtree(nodes),
-      i = 0,
-      n = nodes.length;
+            // More info https://github.com/hakimel/reveal.js#configuration
+            Reveal.initialize({
+                controls: true,
+                progress: true,
+                history: true,
+                center: true,
 
-  while (++i < n) q.visit(collide(nodes[i]));
+                transition: 'slide', // none/fade/slide/convex/concave/zoom
 
-  svg.selectAll("circle")
-      .attr("cx", function(d) { return d.x; })
-      .attr("cy", function(d) { return d.y; });
-});
-
-svg.on("mousemove", function() {
-  var p1 = d3.mouse(this);
-  root.px = p1[0];
-  root.py = p1[1];
-  force.resume();
-});
-
-function collide(node) {
-  var r = node.radius + 16,
-      nx1 = node.x - r,
-      nx2 = node.x + r,
-      ny1 = node.y - r,
-      ny2 = node.y + r;
-  return function(quad, x1, y1, x2, y2) {
-    if (quad.point && (quad.point !== node)) {
-      var x = node.x - quad.point.x,
-          y = node.y - quad.point.y,
-          l = Math.sqrt(x * x + y * y),
-          r = node.radius + quad.point.radius;
-      if (l < r) {
-        l = (l - r) / l * .5;
-        node.x -= x *= l;
-        node.y -= y *= l;
-        quad.point.x += x;
-        quad.point.y += y;
-      }
-    }
-    return x1 > nx2 || x2 < nx1 || y1 > ny2 || y2 < ny1;
-  };
-}
-
-var runif = (min, max) => Math.random() * (max - min) + min;
-var _transitions = [],
-    _inverse_transitions = [];
-_transitions.push(
-  () => d3.selectAll("circle")
-      .transition().duration(1000)
-      .attr("r", function(d) { return d.radius * runif(1, 10); })
-);
-_inverse_transitions.push(
-  () => d3.selectAll("circle")
-        .transition().duration(1000)
-        .attr("r", function(d) { return d.radius; })
-);
-_transitions.push(
-  () => d3.selectAll("circle")
-        .transition().duration(1500)
-        .style("fill", "#33ff33")
-);
-_inverse_transitions.push(
-  () => d3.selectAll("circle")
-        .transition().duration(1500)
-        .style("fill", function(d, i) { return color(i % 3); })
-);
-
-</script>
-
-</body>
+                // More info https://github.com/hakimel/reveal.js#dependencies
+                dependencies: [
+                    { src: 'plugin/external/external.js', condition: function() { return !!document.querySelector( '[data-external]' ); } },
+                    { src: 'lib/js/classList.js', condition: function() { return !document.body.classList; } },
+                    { src: 'plugin/markdown/marked.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+                    { src: 'plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+                    { src: 'plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } },
+                    { src: 'plugin/zoom-js/zoom.js', async: true },
+                    { src: 'plugin/notes/notes.js', async: true },
+                ]
+            });
+        </script>
+    </body>
+</html>

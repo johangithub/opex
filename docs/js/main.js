@@ -277,26 +277,10 @@ class Plant {
     }
 }
 
-//Load data
-var q = d3.queue()
-          .defer(d3.csv, 'demand.csv')
-          .defer(d3.csv, 'plants.csv')
-          .defer(d3.csv, 'products.csv')
-          .defer(d3.csv, 'setup.csv')
-          .defer(d3.csv, 'customers.csv')
-          .defer(d3.csv, 'capacity.csv')
-          .defer(d3.csv, 'dist_c2c.csv') 
-          .defer(d3.csv, 'dist_p2c.csv')
-          .await(ready)
-
 data = {}
-function ready(error, demand_input, plants_input, products_input, setup_input, customers_input, capacity_input, dist_c2c, dist_p2c){
-console.log(error)
-    if (error) throw error
     
     data['demand'] = demand_input
     data['plants'] = plants_input
-    data['products'] = products_input
     data['setup'] = setup_input
     data['customers'] = customers_input
     data['capacity'] = capacity_input
@@ -511,7 +495,7 @@ upgrade_13.plants = _.cloneDeep(plants)
     }
 
 
-    var text = d3.select("body")
+    var text = d3.select("#summary")
                  .append("div")
                  .selectAll(".summary")
                  .data([1,2,3,4,5])
@@ -528,430 +512,428 @@ upgrade_13.plants = _.cloneDeep(plants)
                 })
 
     var svgWidth = 1400
-    var svgHeight = 500
+    // var svgHeight = 500
 
 
+    // var svg2 = d3.select("body").append("svg"),
+    //       margin = {top: 20, right: 20, bottom: 30, left: 70},
+    //       width2 = svgWidth - margin.left - margin.right,
+    //       height2 = 1000 - margin.top - margin.bottom
+    // svg2.attr("width", width2)
+    //     .attr("height", height2)
 
-          margin = {top: 20, right: 20, bottom: 30, left: 70},
-          width2 = svgWidth - margin.left - margin.right,
-          height2 = 1000 - margin.top - margin.bottom
+    // projection = d3.geoAlbers()
+    //                    .translate([width2/2, height2/2])
+    //                    .scale([1500])
+    // var path = d3.geoPath(projection)
 
-    svg2 = d3.select("body").append("svg")
-             .attr("width", width2)
-             .attr("height", height2)
+    // x2 = d3.scaleLinear().rangeRound([0+100, width2 - 100])
+    // y2 = d3.scaleLinear().rangeRound([height2 - 100, 0+100])
 
-    projection = d3.geoAlbers()
-                       .translate([width2/2, height2/2])
-                       .scale([1500])
-    var path = d3.geoPath(projection)
-
-    x2 = d3.scaleLinear().rangeRound([0+100, width2 - 100])
-    y2 = d3.scaleLinear().rangeRound([height2 - 100, 0+100])
-
-    x2.domain(d3.extent(data.customers.map(d=>d.long)))
-    y2.domain(d3.extent(data.customers.map(d=>d.lat)))
+    // x2.domain(d3.extent(data.customers.map(d=>d.long)))
+    // y2.domain(d3.extent(data.customers.map(d=>d.lat)))
     
-    var tip_circle = d3.tip().attr("class", "d3-tip").html(
-        function(d){
-        return `Customer ${d.customer_id} <br>
-                ${d.city} ${d.state} <br>
-                Product 1: ${d3.format(".2f")(_.find(data.demand, v=>v.customer_id==d.customer_id && v.product_id == 1).demand)} <br>
-                Product 2: ${d3.format(".2f")(_.find(data.demand, v=>v.customer_id==d.customer_id && v.product_id == 2).demand)} <br>
-                Product 3: ${d3.format(".2f")(_.find(data.demand, v=>v.customer_id==d.customer_id && v.product_id == 3).demand)} <br>
-                Product 4: ${d3.format(".2f")(_.find(data.demand, v=>v.customer_id==d.customer_id && v.product_id == 4).demand)} <br>
-                Product 5: ${d3.format(".2f")(_.find(data.demand, v=>v.customer_id==d.customer_id && v.product_id == 5).demand)} <br>
-                Plant 1: ${d3.format(".2f")(_.find(data.dist_p2c, v=>v.customer_id==d.customer_id && v.plant_id == 1).dist)} <br>
-                Plant 2: ${d3.format(".2f")(_.find(data.dist_p2c, v=>v.customer_id==d.customer_id && v.plant_id == 2).dist)} <br>
-                Plant 3: ${d3.format(".2f")(_.find(data.dist_p2c, v=>v.customer_id==d.customer_id && v.plant_id == 3).dist)} <br>
-                Plant 4: ${d3.format(".2f")(_.find(data.dist_p2c, v=>v.customer_id==d.customer_id && v.plant_id == 4).dist)} <br>
-                `
-        })
-    d3.json("us-states.json", (error, json)=>{
-        if (error) throw error
-        svg2.selectAll("path")
-            .data(json.features).enter()
-            .append("path")
-            .attr("d", path)
-            .style("stroke", "#fff")
-            .style("stroke-width", "1")
-            .style("opacity", 0.3)
+    // var tip_circle = d3.tip().attr("class", "d3-tip").html(
+    //     function(d){
+    //     return `Customer ${d.customer_id} <br>
+    //             ${d.city} ${d.state} <br>
+    //             Product 1: ${d3.format(".2f")(_.find(data.demand, v=>v.customer_id==d.customer_id && v.product_id == 1).demand)} <br>
+    //             Product 2: ${d3.format(".2f")(_.find(data.demand, v=>v.customer_id==d.customer_id && v.product_id == 2).demand)} <br>
+    //             Product 3: ${d3.format(".2f")(_.find(data.demand, v=>v.customer_id==d.customer_id && v.product_id == 3).demand)} <br>
+    //             Product 4: ${d3.format(".2f")(_.find(data.demand, v=>v.customer_id==d.customer_id && v.product_id == 4).demand)} <br>
+    //             Product 5: ${d3.format(".2f")(_.find(data.demand, v=>v.customer_id==d.customer_id && v.product_id == 5).demand)} <br>
+    //             Plant 1: ${d3.format(".2f")(_.find(data.dist_p2c, v=>v.customer_id==d.customer_id && v.plant_id == 1).dist)} <br>
+    //             Plant 2: ${d3.format(".2f")(_.find(data.dist_p2c, v=>v.customer_id==d.customer_id && v.plant_id == 2).dist)} <br>
+    //             Plant 3: ${d3.format(".2f")(_.find(data.dist_p2c, v=>v.customer_id==d.customer_id && v.plant_id == 3).dist)} <br>
+    //             Plant 4: ${d3.format(".2f")(_.find(data.dist_p2c, v=>v.customer_id==d.customer_id && v.plant_id == 4).dist)} <br>
+    //             `
+    //     })
+    // // d3.json("us-states.json", (error, json)=>{
+    // //     if (error) throw error
+    // //     svg2.selectAll("path")
+    // //         .data(json.features).enter()
+    // //         .append("path")
+    // //         .attr("d", path)
+    // //         .style("stroke", "#fff")
+    // //         .style("stroke-width", "1")
+    // //         .style("opacity", 0.3)
 
-        svg2.selectAll("circle")
-            .data(data.customers)
-            .enter()
-            .append("circle")
-            .attr("cx", function(d){return projection([d.long, d.lat])[0]})
-            .attr("cy", function(d){return projection([d.long, d.lat])[1]})
-            .attr("r", 3)
-            .style("fill", "steelblue")
-            .attr("id", d=>"circle_"+d.customer_id)
-            .on('mouseover', tip_circle.show)
-            .on('mouseout', tip_circle.hide)
+    // //     svg2.selectAll("circle")
+    // //         .data(data.customers)
+    // //         .enter()
+    // //         .append("circle")
+    // //         .attr("cx", function(d){return projection([d.long, d.lat])[0]})
+    // //         .attr("cy", function(d){return projection([d.long, d.lat])[1]})
+    // //         .attr("r", 3)
+    // //         .style("fill", "steelblue")
+    // //         .attr("id", d=>"circle_"+d.customer_id)
+    // //         .on('mouseover', tip_circle.show)
+    // //         .on('mouseout', tip_circle.hide)
 
-        svg2.selectAll("text.plant")
-            .data(data.plants)
-            .enter()
-            .append("text")
-            .attr("class", "plant")
-            .attr("x", function(d){return projection([d.long, d.lat])[0]})
-            .attr("y", function(d){return projection([d.long, d.lat])[1]})
-            .text(function(d){return d.plant_id})
-            .style("cursor", "default")
-            .style("font-size", "10px")
+    // //     svg2.selectAll("text.plant")
+    // //         .data(data.plants)
+    // //         .enter()
+    // //         .append("text")
+    // //         .attr("class", "plant")
+    // //         .attr("x", function(d){return projection([d.long, d.lat])[0]})
+    // //         .attr("y", function(d){return projection([d.long, d.lat])[1]})
+    // //         .text(function(d){return d.plant_id})
+    // //         .style("cursor", "default")
+    // //         .style("font-size", "10px")
 
-        svg2.call(tip_circle)
-        svg2.selectAll("text.cluster")
-            .data(data.clusters)
-            .enter()
-            .append("text")
-            .attr("class", "cluster")
-            .attr("x", 0)
-            .attr("y", (d,i)=>i*50+200)
-            .text((d,i)=>"Cluster "+(i+1))
-            .style("cursor", "pointer")
-            .on("mouseover",d=> identifyClusters(d))
-            .on("mouseout", clearAll)
+    // //     svg2.call(tip_circle)
+    // //     svg2.selectAll("text.cluster")
+    // //         .data(data.clusters)
+    // //         .enter()
+    // //         .append("text")
+    // //         .attr("class", "cluster")
+    // //         .attr("x", 0)
+    // //         .attr("y", (d,i)=>i*50+200)
+    // //         .text((d,i)=>"Cluster "+(i+1))
+    // //         .style("cursor", "pointer")
+    // //         .on("mouseover",d=> identifyClusters(d))
+    // //         .on("mouseout", clearAll)
 
-        function identifyClusters(d){
-            d.forEach(i =>{
-                d3.selectAll("#circle_"+i)
-                  .style("fill", "brown")
-                  .attr("r", 10)
-                  .attr("opacity", 0.5)
+    // //     function identifyClusters(d){
+    // //         d.forEach(i =>{
+    // //             d3.selectAll("#circle_"+i)
+    // //               .style("fill", "brown")
+    // //               .attr("r", 10)
+    // //               .attr("opacity", 0.5)
+    // //         })
+    // //     }
+    // //     function clearAll(){
+    // //         d3.selectAll("circle")
+    // //             .style("fill", "steelblue")
+    // //             .attr("r", 3)
+    // //             .attr("opacity", 1)
+    // //     }
+    // // })
+
+function demand_covered(){
+    var dist_set = []
+    for (let customer of data.customers){
+        var temp = data.dist_c2c.filter(d=>d.dist <= 500 && d.customer_from == customer.customer_id).map(d=>d.customer_to)
+        dist_set.push(temp)
+    }
+    //Find clusters that share the same coverage
+    var clusters = []
+    same_list = new Set()
+    for (let i=0;i<49;i++){
+        for (let j=i+1;j<50;j++){
+            if ((_.isEqual(_.intersection(dist_set[i],dist_set[j]),dist_set[i])) || (_.isEqual(_.intersection(dist_set[i],dist_set[j]), dist_set[j]))){
+                if (_.isEqual(dist_set[i], dist_set[j])){
+                    if (same_list.has(i+1)){
+                        var ind = clusters.findIndex(d=>d.has(i+1))
+                        clusters[ind].add(j+1)
+                    } else if (same_list.has(j+1)){
+                        var ind = clusters.findIndex(d=>d.has(j+1))
+                        clusters[ind].add(i+1)
+
+                    //Never seen
+                    } else {
+                        clusters.push(new Set([i+1, j+1]))
+                    }
+                    same_list.add(i+1)
+                    same_list.add(j+1)
+                }
+            }
+        }
+    }
+    return clusters
+}
+
+
+function total_demand(product_id){
+    return d3.format('.2f')(_.sum(data.demand.filter(d => d.product_id == product_id).map(d => d.demand)))
+}
+
+function coverage_500(product_id){
+    var plant_id = product_id == 5 ? 4 : product_id
+
+    //array of customers within 500 miles
+    var covered_customers = data.dist_p2c.filter(d=>d.dist <= 500 && d.plant_id == plant_id).map(d=>d.customer_id)
+
+    //Actual demand covered
+    var covered_demand = _.sum(data.demand.filter(d=>d.product_id == product_id && covered_customers.includes(d.customer_id)).map(d=>d.demand))
+
+    return covered_demand/total_demand(product_id)
+}
+
+function calculate_demand(warehouses){
+    //Set already covered customers' demands to 0        
+    var demand_list = []
+    for(let product=1;product<=5;product++){
+        var plant_id = product == 5 ? 4 : product
+        var covered_customers = data.dist_p2c.filter(d=>d.dist<=500 && d.plant_id == plant_id).map(d=>d.customer_id)
+        demand_list.push(data.demand.filter(d=>d.product_id == product).map(d=>{
+            return covered_customers.includes(d.customer_id) ? 0 : d.demand
+        }))
+    }
+
+    //Map backto customer_id for transport cost calculation
+    var warehouse_ind = _.map(warehouses, (d,i) => d>0 ? i+1 : 0).filter(d=>d>0)
+    var warehouse_transport_cost = {}
+    var plant_to_warehouse_cost = [0,0,0,0]
+    var plant_transport_cost = [0,0,0,0]
+    var demand_covered = [0, 0, 0, 0, 0]
+    warehouse_ind.map(d=> warehouse_transport_cost[d]= [0,0,0,0,0])
+    //For each customer and demand, pick the closest option and be fulfilled by that.
+    for (let demand of data.demand){
+        var plant_id = demand.product_id == 5 ? 4 : demand.product_id
+        var plant = _.find(data.dist_p2c, d=>d.customer_id==demand.customer_id && d.plant_id == plant_id)
+        var closest_warehouse = _.sortBy(data.dist_c2c.filter(d=>d.customer_to==demand.customer_id && warehouse_ind.includes(d.customer_from)),d=>d.dist)[0]
+        closest_warehouse.customer_id = closest_warehouse.customer_from
+        //Fulfilled directly by plant
+        if (plant.dist < closest_warehouse.dist && plant.dist <= 500){
+            // console.log(`Product ${demand.product_id} for Customer ${demand.customer_id} is fulfilled by the plant`)
+            plant_transport_cost[plant.plant_id-1] += Math.ceil(demand.demand / 10) * 2 * plant.dist
+            demand_covered[demand.product_id-1] += demand.demand
+        //fulfilled by plant
+        } else if (plant.dist > closest_warehouse.dist && closest_warehouse.dist <= 500){
+            // console.log(`Product ${demand.product_id} for Customer ${demand.customer_id} is fulfilled by the warehouse`)    
+            warehouse_transport_cost[closest_warehouse.customer_id][demand.product_id-1] += Math.ceil(demand.demand / 10) * 2 * closest_warehouse.dist
+            let plant_to_warehouse_dist = _.find(data.dist_p2c, d=>d.customer_id==closest_warehouse.customer_id && d.plant_id ==plant_id).dist
+            plant_to_warehouse_cost[plant_id-1] += Math.ceil(demand.demand/10) * 2 * plant_to_warehouse_dist
+            demand_covered[demand.product_id-1] += demand.demand
+        } else {
+            //Not covered at all, so fulfill straight from the plant, but don't add it to demand_covered
+            plant_transport_cost[plant.plant_id-1] += Math.ceil(demand.demand / 10) * 2 * plant.dist
+        }
+    }
+    //Straight from plant to customer + warehouse to customer + plant to warehouse
+    var total_warehouse_to_customer = _.sum(Object.values(warehouse_transport_cost).map(d=>_.sum(d)))
+    var total_plant_to_customer = _.sum(plant_transport_cost)
+    var total_plant_to_warehouse = _.sum(plant_to_warehouse_cost)
+    var total_transport_cost = total_warehouse_to_customer + total_plant_to_customer + total_plant_to_warehouse
+
+    //Create 50x50 distance_matrix
+    var dist_matrix = []
+    for (let customer of data.customers){
+        //[0,1] vector to see if this customer covers others within 500 miles
+        var dist_c2c = data.dist_c2c.filter(d=>d.customer_from==customer.customer_id)
+        var temp = dist_c2c.sort((a,b)=>a.customer_to > b.customer_to).map(d => d.dist <= 500 ? 1 : 0)
+        dist_matrix.push(temp)
+    }
+
+    var demand_covered_percent = demand_covered.map((d,i)=>(d/total_demand(i+1)))
+    return [demand_covered, demand_covered_percent, total_transport_cost]
+}
+
+function getCombinations(array_in, size) {
+    function p(t, i) {
+        if (t.length === size) {
+            result.push(t);
+            return;
+        }
+        if (i + 1 > array_in.length) {
+            return;
+        }
+        p(t.concat(array_in[i]), i + 1);
+        p(t, i + 1);
+    }
+
+    var result = [];
+    p([], 0);
+    return result;
+}
+
+function iterate_combinations(){
+    //We should only consider
+    //[8, 35, 27, {4|25|26|33|39}, 12, 27, 14, 30, {5|6|16|17|34|41|49},
+    //{7|24|50}, 31, {13|47}, {2|28|36|43}]
+    //Because others are strictly dominated
+    // Of the identical sets, calculating mean distance shows which would be ideal
+    //So only consider the following
+    var possible_customers = [8,35,12,27,14,30,5,31,13,2, 24, 7, 50, 39]
+    //Final answer
+    possible_customers = [5, 8, 31, 39]
+
+    for (i=4;i<5;i++){
+        var permut = getCombinations(possible_customers, i)
+        var current_transport_cost = 1e12
+        for (let warehouse of permut){
+            var warehouses = Array(50).fill(0)
+            warehouse.forEach(i=>{
+                warehouses[i-1]=1
             })
+
+            //Target percentage is used, because of baseline coverage from the plants
+            var result = calculate_demand(warehouses)
+            var output = result[0]
+            var output_percent = result[1]
+            var transport_cost = result[2]
+            if (output_percent.filter((d,i)=>d>=.8).length == 5 && transport_cost <= current_transport_cost){
+                console.log(warehouse, output_percent, transport_cost)
+                current_transport_cost = transport_cost
+                after_warehouse_percentage = output_percent
+            }
         }
-        function clearAll(){
-            d3.selectAll("circle")
-                .style("fill", "steelblue")
-                .attr("r", 3)
-                .attr("opacity", 1)
+    }
+    return after_warehouse_percentage
+}
+
+function calculate_baseline_transport_cost(){
+    var all_customer_demand = []
+    var ans = 0
+    for (let customer=1;customer<=50;customer++){
+        var customer_demand = data.demand.filter(d=>d.customer_id ==customer && d.product_id < 5).map(d=>d.demand)
+        customer_demand[3] += _.find(data.demand, d=>d.customer_id==customer && d.product_id ==5).demand
+        customer_demand.forEach((d,plant_id)=>{
+            var distance =  _.find(data.dist_p2c, v=>v.plant_id == (plant_id+1) && v.customer_id == customer).dist
+            ans += distance * Math.ceil(d/10) * 2
+        })
+        all_customer_demand.push(customer_demand)
+    }
+    console.log(`Baseline transport cost is ${formatNum(ans)}, Delta: ${formatNum(108243401.94-ans)}`)
+}
+calculate_baseline_transport_cost()
+
+//Assuming infinite capacity, what is the theoretical max profit?
+//Profit is driven by Revenue, production cost, transport cost, setup cost,
+//Revenue is fixed, and production cost is largely fixed, we we need to reduce transport cost and setup cost
+//Let's assumme no capacity limit and production rate
+function calculate_theoretical_max_profit(){
+    //Theoretical minimum transport cost. I.e., if all products were fulfilled by the closest plant.
+    //This approach also combines shipments as best as it can.
+    var total_transport_cost = 0
+    var total_production_cost = _.sum(data.demand.map(d=>(6-d.product_id)*100*d.demand))
+    var total_revenue = _.sum(data.demand.map(d=>d.revenue*d.demand))
+    var demand_per_plant = [0,0,0,0]
+    for (let customer=1;customer<=50;customer++){
+        var closest_plant = _.sortBy(data.dist_p2c.filter(d=>d.customer_id==customer), d=>d.dist)[0]
+        var all_demand = _.sum(data.demand.filter(d=>d.customer_id==customer).map(d=>d.demand))
+        demand_per_plant[closest_plant.plant_id -1] += all_demand
+        total_transport_cost += Math.ceil(all_demand/10) * 2 * closest_plant.dist
+    }
+    var total_profit = total_revenue - total_production_cost - total_transport_cost - 40e6
+    console.log(`Total Revenue is fixed at ${formatNum(total_revenue)}`)
+    console.log(`Total Production cost with no overtime is fixed at ${formatNum(total_production_cost)}`)
+    console.log(`Theoretical minimum transport cost is ${formatNum(total_transport_cost)}`)
+    console.log(`Theoretical Profit: ${formatNum(total_revenue-total_production_cost-total_transport_cost)} (no upgrade, setup, overtime)`)
+    console.log(`With plants producing`)
+    console.log(`Plant 1: ${formatNum(demand_per_plant[0])} with ${Math.ceil(demand_per_plant[0]/800)} regular working days / year`)
+    console.log(`Plant 2: ${formatNum(demand_per_plant[1])} with ${Math.ceil(demand_per_plant[1]/400)} regular working days / year`)
+    console.log(`Plant 3: ${formatNum(demand_per_plant[2])} with ${Math.ceil(demand_per_plant[2]/400)} regular working days / year`)
+    console.log(`Plant 4: ${formatNum(demand_per_plant[3])} with ${Math.ceil(demand_per_plant[3]/400)} regular working days / year`)
+    console.log(`With all plants upgraded, max profit with theoretical minimum transport cost and no setup cost is ${formatNum(total_profit)}`)
+}
+calculate_theoretical_max_profit()
+
+function calculate_demand_cost(customer_id){
+    customers_to_be_served = _.find(customers, d=>d.id == customer_id).customers_within_500
+    var weighted_cost = 0
+    for (let customer of customers_to_be_served){
+        demand_served = _.sum(data.demand.filter(d=>d.customer_id==customer).map(d=>d.demand))
+        distance = data.dist_c2c.filter(d=> (d.customer_to==customer) && (d.customer_from ==customer_id)).map(d=>d.dist)[0]
+        weighted_cost += Math.ceil(demand_served/10)* distance * 2 
+    }
+    return weighted_cost
+}
+
+function decide_city_within_cluster(clusters){
+    clusters.forEach((cluster, i)=>{
+        var min_customer = -1
+        var cost = 1e10
+        for (let customer of cluster){
+            if (cost > calculate_demand_cost(customer)){
+                min_customer = customer
+                cost = calculate_demand_cost(customer)
+            }
         }
+    // console.log(cluster, min_customer)
+    })
+}
+// decide_city_within_cluster(clusters)
+
+//Given the start product and possible products to cycle through, give the shortest cycle days to transition through and return to normal
+function best_cycling_products(start_product, possible_products){
+    function permute(input_array) {
+      var i, ch;
+      for (i = 0; i < input_array.length; i++) {
+        ch = input_array.splice(i, 1)[0];
+        usedChars.push(ch);
+        if (input_array.length == 0) {
+          permArr.push(usedChars.slice());
+        }
+        permute(input_array);
+        input_array.splice(i, 0, ch);
+        usedChars.pop();
+      }
+      return permArr
+    };
+
+    function setup_cost(from, to){
+        return _.find(data.setup, d=>d.from==from && d.to==to).days
+    }
+        var permArr = []
+        var usedChars = []
+
+        var permut_input = possible_products
+        permut_input.splice(possible_products.indexOf(start_product),1)
+        var permutations = permute(permut_input)
+        var cost = 1000
+        var best_candidate = []
+        for (let cycle of permutations){
+            // Iterate through all possible permutations of cycle to get the best cycling
+            var temp_cost = setup_cost(start_product,cycle[0])
+            for (let i=0; i<cycle.length-1;i++){
+                temp_cost += setup_cost(cycle[i],cycle[i+1])
+            }
+
+            temp_cost += setup_cost(cycle[cycle.length-1],start_product)
+            if (cost > temp_cost){
+                cost = temp_cost
+                best_candidate = cycle
+            }
+        }
+    console.log(start_product, best_candidate, cost)
+}
+// best_cycling_products(3,[1,2,3])
+
+function preprocessing(){     
+    dist_p2c.forEach(d=>{
+        d.customer_id = +d.customer_id
+        d.plant_id = +d.plant_id
+        d.dist = +d.dist
     })
 
+    dist_c2c.forEach(d=>{
+        d.dist = +d.dist
+        d.customer_from = +d.customer_from
+        d.customer_to = +d.customer_to
+    })
 
-    function demand_covered(){
-        var dist_set = []
-        for (let customer of data.customers){
-            var temp = data.dist_c2c.filter(d=>d.dist <= 500 && d.customer_from == customer.customer_id).map(d=>d.customer_to)
-            dist_set.push(temp)
-        }
-        //Find clusters that share the same coverage
-        var clusters = []
-        same_list = new Set()
-        for (let i=0;i<49;i++){
-            for (let j=i+1;j<50;j++){
-                if ((_.isEqual(_.intersection(dist_set[i],dist_set[j]),dist_set[i])) || (_.isEqual(_.intersection(dist_set[i],dist_set[j]), dist_set[j]))){
-                    if (_.isEqual(dist_set[i], dist_set[j])){
-                        if (same_list.has(i+1)){
-                            var ind = clusters.findIndex(d=>d.has(i+1))
-                            clusters[ind].add(j+1)
-                        } else if (same_list.has(j+1)){
-                            var ind = clusters.findIndex(d=>d.has(j+1))
-                            clusters[ind].add(i+1)
+    customers_input.forEach(d=>{
+        d.customer_id = +d.customer_id
+        d.lat = +d.lat
+        d.long = +d.long
+    })
 
-                        //Never seen
-                        } else {
-                            clusters.push(new Set([i+1, j+1]))
-                        }
-                        same_list.add(i+1)
-                        same_list.add(j+1)
-                    }
-                }
-            }
-        }
-        return clusters
-    }
+    plants = []
+    plants_input.forEach(d=>{
+        d.plant_id = +d.plant_id
+        d.lat = +d.lat
+        d.long = +d.long
+    })
 
+    demand_input.forEach(d=>{
+        d.customer_id = +d.customer_id
+        d.product_id = +d.product_id
+        d.demand = +d.demand
+        d.revenue = +d.revenue
+    })
 
-    function total_demand(product_id){
-        return d3.format('.2f')(_.sum(data.demand.filter(d => d.product_id == product_id).map(d => d.demand)))
-    }
-    
-    function coverage_500(product_id){
-        var plant_id = product_id == 5 ? 4 : product_id
+    capacity_input.forEach(d=>{
+        d.plant_id = +d.plant_id
+        d.product_id = +d.product_id
+        d.capacity = +d.capacity
+        d.cost = +d.cost
+    })
 
-        //array of customers within 500 miles
-        var covered_customers = data.dist_p2c.filter(d=>d.dist <= 500 && d.plant_id == plant_id).map(d=>d.customer_id)
-
-        //Actual demand covered
-        var covered_demand = _.sum(data.demand.filter(d=>d.product_id == product_id && covered_customers.includes(d.customer_id)).map(d=>d.demand))
-
-        return covered_demand/total_demand(product_id)
-    }
-
-    function calculate_demand(warehouses){
-        //Set already covered customers' demands to 0        
-        var demand_list = []
-        for(let product=1;product<=5;product++){
-            var plant_id = product == 5 ? 4 : product
-            var covered_customers = data.dist_p2c.filter(d=>d.dist<=500 && d.plant_id == plant_id).map(d=>d.customer_id)
-            demand_list.push(data.demand.filter(d=>d.product_id == product).map(d=>{
-                return covered_customers.includes(d.customer_id) ? 0 : d.demand
-            }))
-        }
-
-        //Map backto customer_id for transport cost calculation
-        var warehouse_ind = _.map(warehouses, (d,i) => d>0 ? i+1 : 0).filter(d=>d>0)
-        var warehouse_transport_cost = {}
-        var plant_to_warehouse_cost = [0,0,0,0]
-        var plant_transport_cost = [0,0,0,0]
-        var demand_covered = [0, 0, 0, 0, 0]
-        warehouse_ind.map(d=> warehouse_transport_cost[d]= [0,0,0,0,0])
-        //For each customer and demand, pick the closest option and be fulfilled by that.
-        for (let demand of data.demand){
-            var plant_id = demand.product_id == 5 ? 4 : demand.product_id
-            var plant = _.find(data.dist_p2c, d=>d.customer_id==demand.customer_id && d.plant_id == plant_id)
-            var closest_warehouse = _.sortBy(data.dist_c2c.filter(d=>d.customer_to==demand.customer_id && warehouse_ind.includes(d.customer_from)),d=>d.dist)[0]
-            closest_warehouse.customer_id = closest_warehouse.customer_from
-            //Fulfilled directly by plant
-            if (plant.dist < closest_warehouse.dist && plant.dist <= 500){
-                // console.log(`Product ${demand.product_id} for Customer ${demand.customer_id} is fulfilled by the plant`)
-                plant_transport_cost[plant.plant_id-1] += Math.ceil(demand.demand / 10) * 2 * plant.dist
-                demand_covered[demand.product_id-1] += demand.demand
-            //fulfilled by plant
-            } else if (plant.dist > closest_warehouse.dist && closest_warehouse.dist <= 500){
-                // console.log(`Product ${demand.product_id} for Customer ${demand.customer_id} is fulfilled by the warehouse`)    
-                warehouse_transport_cost[closest_warehouse.customer_id][demand.product_id-1] += Math.ceil(demand.demand / 10) * 2 * closest_warehouse.dist
-                let plant_to_warehouse_dist = _.find(data.dist_p2c, d=>d.customer_id==closest_warehouse.customer_id && d.plant_id ==plant_id).dist
-                plant_to_warehouse_cost[plant_id-1] += Math.ceil(demand.demand/10) * 2 * plant_to_warehouse_dist
-                demand_covered[demand.product_id-1] += demand.demand
-            } else {
-                //Not covered at all, so fulfill straight from the plant, but don't add it to demand_covered
-                plant_transport_cost[plant.plant_id-1] += Math.ceil(demand.demand / 10) * 2 * plant.dist
-            }
-        }
-        //Straight from plant to customer + warehouse to customer + plant to warehouse
-        var total_warehouse_to_customer = _.sum(Object.values(warehouse_transport_cost).map(d=>_.sum(d)))
-        var total_plant_to_customer = _.sum(plant_transport_cost)
-        var total_plant_to_warehouse = _.sum(plant_to_warehouse_cost)
-        var total_transport_cost = total_warehouse_to_customer + total_plant_to_customer + total_plant_to_warehouse
-
-        //Create 50x50 distance_matrix
-        var dist_matrix = []
-        for (let customer of data.customers){
-            //[0,1] vector to see if this customer covers others within 500 miles
-            var dist_c2c = data.dist_c2c.filter(d=>d.customer_from==customer.customer_id)
-            var temp = dist_c2c.sort((a,b)=>a.customer_to > b.customer_to).map(d => d.dist <= 500 ? 1 : 0)
-            dist_matrix.push(temp)
-        }
-
-        var demand_covered_percent = demand_covered.map((d,i)=>(d/total_demand(i+1)))
-        return [demand_covered, demand_covered_percent, total_transport_cost]
-    }
-
-    function getCombinations(array_in, size) {
-        function p(t, i) {
-            if (t.length === size) {
-                result.push(t);
-                return;
-            }
-            if (i + 1 > array_in.length) {
-                return;
-            }
-            p(t.concat(array_in[i]), i + 1);
-            p(t, i + 1);
-        }
-
-        var result = [];
-        p([], 0);
-        return result;
-    }
-    function iterate_combinations(){
-        //We should only consider
-        //[8, 35, 27, {4|25|26|33|39}, 12, 27, 14, 30, {5|6|16|17|34|41|49},
-        //{7|24|50}, 31, {13|47}, {2|28|36|43}]
-        //Because others are strictly dominated
-        // Of the identical sets, calculating mean distance shows which would be ideal
-        //So only consider the following
-        var possible_customers = [8,35,12,27,14,30,5,31,13,2, 24, 7, 50, 39]
-        //Final answer
-        possible_customers = [5, 8, 31, 39]
-
-        for (i=4;i<5;i++){
-            var permut = getCombinations(possible_customers, i)
-            var current_transport_cost = 1e12
-            for (let warehouse of permut){
-                var warehouses = Array(50).fill(0)
-                warehouse.forEach(i=>{
-                    warehouses[i-1]=1
-                })
-
-                //Target percentage is used, because of baseline coverage from the plants
-                var result = calculate_demand(warehouses)
-                var output = result[0]
-                var output_percent = result[1]
-                var transport_cost = result[2]
-                if (output_percent.filter((d,i)=>d>=.8).length == 5 && transport_cost <= current_transport_cost){
-                    console.log(warehouse, output_percent, transport_cost)
-                    current_transport_cost = transport_cost
-                    after_warehouse_percentage = output_percent
-                }
-            }
-        }
-        return after_warehouse_percentage
-    }
-    function calculate_baseline_transport_cost(){
-        var all_customer_demand = []
-        var ans = 0
-        for (let customer=1;customer<=50;customer++){
-            var customer_demand = data.demand.filter(d=>d.customer_id ==customer && d.product_id < 5).map(d=>d.demand)
-            customer_demand[3] += _.find(data.demand, d=>d.customer_id==customer && d.product_id ==5).demand
-            customer_demand.forEach((d,plant_id)=>{
-                var distance =  _.find(data.dist_p2c, v=>v.plant_id == (plant_id+1) && v.customer_id == customer).dist
-                ans += distance * Math.ceil(d/10) * 2
-            })
-            all_customer_demand.push(customer_demand)
-        }
-        console.log(`Baseline transport cost is ${formatNum(ans)}`)
-    }
-    calculate_baseline_transport_cost()
-
-    //Assuming infinite capacity, what is the theoretical max profit?
-    //Profit is driven by Revenue, production cost, transport cost, setup cost,
-    //Revenue is fixed, and production cost is largely fixed, we we need to reduce transport cost and setup cost
-    //Let's assumme no capacity limit and production rate
-    function calculate_theoretical_max_profit(){
-        //Theoretical minimum transport cost. I.e., if all products were fulfilled by the closest plant.
-        //This approach also combines shipments as best as it can.
-        var total_transport_cost = 0
-        var total_production_cost = _.sum(data.demand.map(d=>(6-d.product_id)*100*d.demand))
-        var total_revenue = _.sum(data.demand.map(d=>d.revenue*d.demand))
-        var demand_per_plant = [0,0,0,0]
-        for (let customer=1;customer<=50;customer++){
-            var closest_plant = _.sortBy(data.dist_p2c.filter(d=>d.customer_id==customer), d=>d.dist)[0]
-            var all_demand = _.sum(data.demand.filter(d=>d.customer_id==customer).map(d=>d.demand))
-            demand_per_plant[closest_plant.plant_id -1] += all_demand
-            total_transport_cost += Math.ceil(all_demand/10) * 2 * closest_plant.dist
-        }
-        var total_profit = total_revenue - total_production_cost - total_transport_cost - 40e6
-        console.log(`Total Revenue is fixed at ${formatNum(total_revenue)}`)
-        console.log(`Total Production cost with no overtime is fixed at ${formatNum(total_production_cost)}`)
-        console.log(`Theoretical minimum transport cost is ${formatNum(total_transport_cost)}`)
-        console.log(`Theoretical Profit: ${formatNum(total_revenue-total_production_cost-total_transport_cost)} (no upgrade, setup, overtime)`)
-        console.log(`With plants producing`)
-        console.log(`Plant 1: ${formatNum(demand_per_plant[0])} with ${Math.ceil(demand_per_plant[0]/800)} regular working days / year`)
-        console.log(`Plant 2: ${formatNum(demand_per_plant[1])} with ${Math.ceil(demand_per_plant[1]/400)} regular working days / year`)
-        console.log(`Plant 3: ${formatNum(demand_per_plant[2])} with ${Math.ceil(demand_per_plant[2]/400)} regular working days / year`)
-        console.log(`Plant 4: ${formatNum(demand_per_plant[3])} with ${Math.ceil(demand_per_plant[3]/400)} regular working days / year`)
-        console.log(`With all plants upgraded, max profit with theoretical minimum transport cost and no setup cost is ${formatNum(total_profit)}`)
-    }
-    calculate_theoretical_max_profit()
-
-    function calculate_demand_cost(customer_id){
-        customers_to_be_served = _.find(customers, d=>d.id == customer_id).customers_within_500
-        var weighted_cost = 0
-        for (let customer of customers_to_be_served){
-            demand_served = _.sum(data.demand.filter(d=>d.customer_id==customer).map(d=>d.demand))
-            distance = data.dist_c2c.filter(d=> (d.customer_to==customer) && (d.customer_from ==customer_id)).map(d=>d.dist)[0]
-            weighted_cost += Math.ceil(demand_served/10)* distance * 2 
-        }
-        return weighted_cost
-    }
-
-    function decide_city_within_cluster(clusters){
-        clusters.forEach((cluster, i)=>{
-            var min_customer = -1
-            var cost = 1e10
-            for (let customer of cluster){
-                if (cost > calculate_demand_cost(customer)){
-                    min_customer = customer
-                    cost = calculate_demand_cost(customer)
-                }
-            }
-        // console.log(cluster, min_customer)
-        })
-    }
-    // decide_city_within_cluster(clusters)
-
-    //Given the start product and possible products to cycle through, give the shortest cycle days to transition through and return to normal
-    function best_cycling_products(start_product, possible_products){
-        function permute(input_array) {
-          var i, ch;
-          for (i = 0; i < input_array.length; i++) {
-            ch = input_array.splice(i, 1)[0];
-            usedChars.push(ch);
-            if (input_array.length == 0) {
-              permArr.push(usedChars.slice());
-            }
-            permute(input_array);
-            input_array.splice(i, 0, ch);
-            usedChars.pop();
-          }
-          return permArr
-        };
-
-        function setup_cost(from, to){
-            return _.find(data.setup, d=>d.from==from && d.to==to).days
-        }
-            var permArr = []
-            var usedChars = []
-
-            var permut_input = possible_products
-            permut_input.splice(possible_products.indexOf(start_product),1)
-            var permutations = permute(permut_input)
-            var cost = 1000
-            var best_candidate = []
-            for (let cycle of permutations){
-                // Iterate through all possible permutations of cycle to get the best cycling
-                var temp_cost = setup_cost(start_product,cycle[0])
-                for (let i=0; i<cycle.length-1;i++){
-                    temp_cost += setup_cost(cycle[i],cycle[i+1])
-                }
-
-                temp_cost += setup_cost(cycle[cycle.length-1],start_product)
-                if (cost > temp_cost){
-                    cost = temp_cost
-                    best_candidate = cycle
-                }
-            }
-        console.log(start_product, best_candidate, cost)
-    }
-    // best_cycling_products(3,[1,2,3])
-
-    function preprocessing(){     
-        dist_p2c.forEach(d=>{
-            d.customer_id = +d.customer_id
-            d.plant_id = +d.plant_id
-            d.dist = +d.dist
-        })
-
-        dist_c2c.forEach(d=>{
-            d.dist = +d.dist
-            d.customer_from = +d.customer_from
-            d.customer_to = +d.customer_to
-        })
-
-        customers_input.forEach(d=>{
-            d.customer_id = +d.customer_id
-            d.lat = +d.lat
-            d.long = +d.long
-        })
-
-        plants = []
-        plants_input.forEach(d=>{
-            d.plant_id = +d.plant_id
-            d.lat = +d.lat
-            d.long = +d.long
-        })
-
-        demand_input.forEach(d=>{
-            d.customer_id = +d.customer_id
-            d.product_id = +d.product_id
-            d.demand = +d.demand
-            d.revenue = +d.revenue
-        })
-
-        capacity_input.forEach(d=>{
-            d.plant_id = +d.plant_id
-            d.product_id = +d.product_id
-            d.capacity = +d.capacity
-            d.cost = +d.cost
-        })
-
-        setup_input.forEach(d=> {
-            d.from = +d.from
-            d.to = +d.to
-            d.days = +d.days
-        })
-    }
+    setup_input.forEach(d=> {
+        d.from = +d.from
+        d.to = +d.to
+        d.days = +d.days
+    })
 }
