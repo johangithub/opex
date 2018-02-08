@@ -1,8 +1,185 @@
-<section id="barchart-slide">
+<!DOCTYPE html>
+<meta charset="utf-8">
+<html>
+<head>
+    <title>Demand</title>
+</head>
+<style type="text/css">
+    .bar:hover{
+        fill: brown;
+    }
+    .d3-tip {
+      line-height: 1;
+      font-weight: bold;
+      font-family: Lucida Grande, Lucida Sans Unicode, Lucida Sans, Geneva, Verdana, sans-serif;
+      padding: 12px;
+      background: rgba(0, 0, 0, 0.8);
+      color: #fff;
+      border-radius: 2px;
+      pointer-events: none;
+    }
+    text{
+        font-family: Lucida Grande, Lucida Sans Unicode, Lucida Sans, Geneva, Verdana, sans-serif;
+    }
+</style>
+<script src="js/d3.v4.min.js"></script>
+<script src="js/d3.tip.js"></script>
+<script src="js/lodash.min.js"></script>
+<body>
 
-        <div id="summary">
-            <h1>Customers</h1>
-        </div>
+<script type="text/javascript">
+//jshint esversion: 6, asi: true, loopfunc: true
+var q = d3.queue()
+         .defer(d3.csv, "data/demand.csv")
+         .defer(d3.csv, "data/customers.csv")
+         .await(ready)
 
-        <div id="barchart"></div>
-</section>
+var data = {}
+function ready(error, demand_input, customers_input){
+    demand_input.forEach(d=>{
+        d.product_id = +d.product_id
+        d.customer_id = +d.customer_id
+        d.demand = +d.demand
+        d.revenue = +d.revenue
+    })
+    customers_input.forEach(d=>{
+        d.customer_id = +d.customer_id
+
+    })
+    data.demand = demand_input
+    data.customers = customers_input
+
+
+        var svgWidth = 1400
+        var svgHeight = 800
+        var margin = {top: 50, right: 20, bottom: 50, left: 70}
+        var width = svgWidth - margin.left - margin.right
+        var height = svgHeight - margin.top - margin.bottom
+
+
+
+        var select = d3.select("body").append("select")
+                       .attr("id", "product")
+                       .style("top", "10px")
+                       .on("change", updateBar)
+
+        select.selectAll("option")
+            .data(['1','2','3','4','5']).enter()
+            .append("option")
+            .text(d => d)
+
+
+        // Add Sort bars
+        var radio = d3.select("body")
+                      .append("div")
+                      .attr("id", "radios")
+        radio.selectAll("label")
+            .data(["customer_id", "demand"])
+            .enter()
+            .append("label")
+            .text(d => d)
+            .insert("input")
+            .attr("type", "radio")
+            .attr("name", "sort")
+            .attr("value", d => d)
+
+        document.getElementsByName("sort")[0].checked = true
+        radio.on("change", ()=>{
+            var checkedValue = _.find([...document.getElementsByName("sort")], d => d.checked).value
+            if (checkedValue =='customer_id'){
+                x.domain(_.range(1,51))
+            } else if (checkedValue == 'demand'){
+                var product_id =  d3.select("#product").property("value")
+                    x.domain(data.demand.sort((a,b) => a.demand < b.demand).filter(d => d.product_id==product_id).map(d => d.customer_id))
+            }
+            updateBar()   
+        })
+
+        var tip = d3.tip().attr("class", "d3-tip").html(d=>
+            {
+                var customer = _.find(data.customers, customer => customer.customer_id == d.customer_id)
+                return `Customer ${customer.customer_id} <br>
+                    ${customer.city}, ${customer.state} <br>
+                    ${d.demand} tons`
+            })
+
+        var svg = d3.select("body")
+             .append("svg")
+             .attr("width", svgWidth)
+             .attr("height", svgHeight)
+
+        svg.call(tip)
+
+        x = d3.scaleBand().rangeRound([0, width]).padding(0.1)
+        y = d3.scaleLinear().rangeRound([height, 0])
+
+        x.domain(_.range(1,51))
+        x.rangeRound([0, 25*50]).padding(0.1)
+
+        
+        var g = svg.append("g")
+          .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
+        var xAxis = d3.axisBottom(x)
+        var yAxis = d3.axisLeft(y).ticks(10)
+
+        g.append("g")
+        .attr("class", "axis axis--x")
+        .attr("transform", "translate(0," + height + ")")
+
+        g.append("g")
+        .attr("class", "axis axis--y")
+        .append("text")
+        .attr("transform", "rotate(-90)")
+        .attr("y", 6)
+        .attr("dy", "0.71em")
+        .attr("text-anchor", "end")
+        .text("Frequency")
+
+        updateBar()
+        var color = function(d){
+            //If already covered, color grey
+            if (d.product_id == 1 && ([10,19,20,27,31].includes(d.customer_id)) ||
+                d.product_id == 2 && ([5,6,16,17,18,30,34,41,48,49].includes(d.customer_id)) ||
+                d.product_id == 3 && ([14,30,32,35].includes(d.customer_id)) ||
+                d.product_id == 4 && ([2,28,36].includes(d.customer_id)) ||
+                d.product_id == 5 && ([2,28,36].includes(d.customer_id))
+                ){
+                return "grey"
+            }
+            return 'steelblue'
+        }
+        function updateBar(){
+            var product_id = d3.select("#product").property("value")
+            var barchartData = data.demand.filter(d=>{return d.product_id==product_id})
+            y.domain([0, d3.max(barchartData.map(d=>d.demand))])
+            var t = d3.transition().duration(500)
+
+            svg.selectAll(".axis--x")
+              .call(xAxis)
+
+            svg.selectAll(".axis--y")
+              .call(yAxis)
+              
+            var bar =  g.selectAll(".bar")
+                        .data(barchartData, d => d.customer_id)
+            bar.attr("class", "bar update")
+               .transition(t)
+               .attr("x", d => x(d.customer_id))
+               .attr("y", d => y(d.demand))
+               .attr("fill", "steelblue")
+               .attr("height", d => height-y(d.demand))
+
+            bar.enter().append("rect")
+                .attr("class", "bar enter")
+                .attr("x", d => x(d.customer_id))
+                .attr("width", x.bandwidth())
+                .attr("y", d => y(d.demand))
+                .attr("fill", "steelblue")
+                .attr("height", d => height - y(d.demand))
+                .on("mouseover", tip.show)
+                .on("mouseout", tip.hide)
+        }
+}
+</script>
+</body>
+</html>
