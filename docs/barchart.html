@@ -130,10 +130,11 @@ function ready(error, demand_input, customers_input){
         .attr("class", "axis axis--y")
         .append("text")
         .attr("transform", "rotate(-90)")
-        .attr("y", 6)
+        .attr("y", 7)
+        .attr("fill","black")
         .attr("dy", "0.71em")
         .attr("text-anchor", "end")
-        .text("Frequency")
+        .text("Demand (tons)")
 
         updateBar()
         var color = function(d){
@@ -159,6 +160,7 @@ function ready(error, demand_input, customers_input){
 
             svg.selectAll(".axis--y")
               .call(yAxis)
+
               
             var bar =  g.selectAll(".bar")
                         .data(barchartData, d => d.customer_id)

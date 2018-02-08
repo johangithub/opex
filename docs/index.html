@@ -26,7 +26,27 @@
         <script src="lib/js/html5shiv.js"></script>
         <![endif]-->
     </head>
+<style type="text/css">
+    p.left_align{
+        text-align: left;
+    }
+    #left {
+      left:-8.33%;
+      text-align: left;
+      float: left;
+      width:50%;
+      z-index:-10;
+    }
 
+    #right {
+      left:31.25%;
+      top: 75px;
+      float: right;
+      text-align: left;
+      z-index:-10;
+      width:50%;
+    }
+</style>
     <body>
         <div class="reveal">
             <div class="slides">
@@ -53,33 +73,151 @@
                         <li>Find the minimum number of warehouses to achieve 80% of 500-mile coverage for all customers</li>
                         <li>Find optimal allocation of resources in producing and delivering products that maximizes profit with an option to upgrade plants</li>
                     </ol>
+                    <p class="left_align">Click <a href="./barchart.html" target="_blank">here</a> for more detailed information on demand</p>
                 </section>
                 <section>
                     <h6>Problem 1 Solution</h6>
                     <!-- <div style="position: relative"> -->
-                    <p style="text-align: left">Place 4 warehouses in customer locations 5(Dallas,TX), 8(Boise,ID), 31(Pittsburgh,PA), 39(City of Industry,CA)</p>
-                    <p class="fragment fade-out" style="position:absolute; text-align: left" data-fragment-index="0">
+                    <p class="left_align">Place 4 warehouses in customer locations 5 (Dallas), 8 (Boise), 31 (Pittsburgh), 39 (City of Industry)</p>
+                    <p class="fragment fade-in fade-out left_align" style="position:absolute;" data-fragment-index="1">
                     Baseline Cost and 500-mile Coverage <br>
-                    Transportation Cost: $98.94M<br>
-                    Product 1: 8.85%<br>
-                    Product 2: 22.68%<br>
-                    Product 3: 7.43%<br>
-                    Product 4: 4.80%<br>
-                    Product 5: 5.71%<br>
+                    Transportation Cost: <span id="no_warehouse_transport_cost"></span><br>
+                    Product 1: <span id="baseline_1_coverage"></span><br>
+                    Product 2: <span id="baseline_2_coverage"></span><br>
+                    Product 3: <span id="baseline_3_coverage"></span><br>
+                    Product 4: <span id="baseline_4_coverage"></span><br>
+                    Product 5: <span id="baseline_5_coverage"></span><br>
                     </p>
-                    <p class="fragment fade-in" style="position:absolute; text-align: left" data-fragment-index="0">
+                    <p class="fragment fade-in left_align" style="position:absolute;" data-fragment-index="2">
                     With Warehouses Cost and 500-mile Coverage<br>
-                    Transportation Cost: $108.24M  (<a style="color: red">+$9.30M</a>)<br>
-                    Product 1: 84.8% (<a style="color: green">+75.95%</a>)<br>
-                    Product 2: 80.94% (<a style="color: green">+58.26%</a>)<br>
-                    Product 3: 90.1% (<a style="color: green">+82.67%</a>)<br>
-                    Product 4: 87.35% (<a style="color: green">+82.55%</a>)<br>
-                    Product 5: 92.01% (<a style="color: green">+86.3%</a>)<br>
+                    Transportation Cost: <span id="warehouse_transport_cost"></span> (<a style="color: red">+<span id="cost_difference"></span></a>)<br>
+                    Product 1: <span id="product_1_coverage"></span>(<a style="color: green">+<span id="coverage_diff_1"></span></a>)<br>
+                    Product 2: <span id="product_2_coverage"></span>(<a style="color: green">+<span id="coverage_diff_2"></span></a>)<br>
+                    Product 3: <span id="product_3_coverage"></span>(<a style="color: green">+<span id="coverage_diff_3"></span></a>)<br>
+                    Product 4: <span id="product_4_coverage"></span>(<a style="color: green">+<span id="coverage_diff_4"></span></a>)<br>
+                    Product 5: <span id="product_5_coverage"></span>(<a style="color: green">+<span id="coverage_diff_5"></span></a>)<br>
                     </p>
                     <!-- </div> -->
-
                 </section>
-                <section data-external="barchart.html"></section>
+                <section>
+                    <h6>Problem 2 Solution</h6>
+                    <p class="fragment fade-out left_align" style="position: absolute" data-fragment-index="1">
+                    Baseline Scenario: Plants 1,2,3 each fulfill products 1,2,3 and plant 4 fulfill products 4 and 5 <br><br>
+                    Revenue: <span id="baseline_revenue"></span><br>
+                    Production Cost: <span id="baseline_production_cost"></span><br>
+                    Transportation Cost: <span id="baseline_transport_cost"></span><br>
+                    Setup Cost: <span id="baseline_setup_cost"></span><br>
+                    Upgrade Cost: <span id="baseline_upgrade_cost"></span><br>
+                    Profit: <span id="baseline_profit"></span><br>
+                    </p>
+                    <p class="fragment fade-in left_align" style="position: absolute" data-fragment-index="1">Recommendation: Upgrade plants 1,2,3. Let plants 1,2,3 each fulfill products 1-3 to the closest customer location while plants 2 and 3 running overtime as needed. Let plant 4 fulfill products 4 and 5 nationwide. <br><br>
+                    Revenue: <span id="upgrade_revenue"></span><br>
+                    Production Cost: <span id="upgrade_production_cost"></span> (<a style="color: green"><span id="production_cost_diff"></span></a>)<br>
+                    Transportation Cost: <span id="upgrade_transport_cost"></span> (<a style="color: green"><span id="transport_cost_diff"></span></a>)<br>
+                    Setup Cost: <span id="upgrade_setup_cost"></span> (<a style="color: red">+<span id="setup_cost_diff"></span></a>)<br>
+                    Upgrade Cost: <span id="upgrade_upgrade_cost"></span> (<a style="color: red">+<span id="upgrade_cost_diff"></span></a>)<br>
+                    Profit: <span id="upgrade_profit"></span> (<a style="color: green">+<span id="profit_diff"></span></a>)<br>
+                    </p>
+                </section>
+                <section>
+                    <h6>Problem 2 Solution</h6>
+                    <p class="fragment fade-in left_align">Baseline Utilization Rate <br>
+                    Plant 1: <span id="baseline_utilization_1"></span><br>
+                    Plant 2: <span id="baseline_utilization_2"></span><br>
+                    Plant 3: <span id="baseline_utilization_3"></span><br>
+                    Plant 4: <span id="baseline_utilization_4"></span><br>
+                    <br><br>
+                    Recommended Scenario Utilization Rate <br>
+                    Plant 1: <span id="upgrade_utilization_1"></span><br>
+                    Plant 2: <span id="upgrade_utilization_2"></span><br>
+                    Plant 3: <span id="upgrade_utilization_3"></span><br>
+                    Plant 4: <span id="upgrade_utilization_4"></span><br>
+                    </p>
+                </section>
+                <section>
+                    <h3>Questions?</h3>
+                </section>
+                <section>
+                    <h6>Problem 1 Formulation</h6>
+                    <p style="font-size: 30px" class="left_align">Let $w_j \in \{0,1\}$ be the decision variable of warehouse built at customer location $j \in [1,50]$, given <br>
+                        $d_{jj'}$: the distance between customer $j$ and $j'$ <br>
+                        $p^{k}_{j}$: distance between product $k$ and customer $j$ (note: $p^{4}_{j} =p^{5}_{j}$) and customer $j$, $k \in [1,5]$,<br>
+                        $D^{k}_{j}$: demand for customer $j$ for product $k$, <br>
+                        $x^{k}_{j} = 1$ if customer $j$ has a coverage from a plant for product $k$ and 0 otherwise, <br>
+                        $y_{j} = 1$ if customer $j$ has a coverage from a warehouse and 0 otherwise, <br>
+                        $c_j^{k}$ is an indicator variable that shows whether product $k$ is covered for customer $j$.<br>
+                        We seek to find the vector $\textbf{w}$ with some large $M$:
+                    $$\min \sum_{i}^{50}w_i \tag{1}$$
+                    $$s.t. \quad \sum_{j}^{50}(c^{k}_{j}D^{k}_{j}) \geq (0.8)\sum_{j}^{50}D^{k}_{j} \quad \forall k \tag{2}$$
+                    $$p^k_j \leq 500 + M(1-x^{k}_{j}), \forall j,k \tag{3}$$
+                    $$w_{j} d_{jj'} \leq 500 + M(1-y_{j'}), \forall j \tag{4}$$
+                    $$c^k_j \leq x^k_j + y_j, \forall j, k \tag{5}$$
+                    $$x^k_j \leq c^k_j, \forall j,k \tag{6}$$
+                    $$y_j \leq c^k_j, \forall j,k \tag{7}$$
+                    $$c^k_j \in \{0,1\}, \forall j, k \tag{8}$$
+                    </p>
+                </section>
+                <section>
+                    <h6>Problem 1 Explanation</h6>
+                    <p class="left_align">Equation (1) seeks to minimize the number of warehouses to place in all customer locations. Equation (2) forces the constraint of 80% demand coverage for all products. Equation (3) forces $x_j^k$ to be 1 if covered by the specific plant and Equation (4) forces $y_j$ to be 1 if a warehouse is placed within 500 miles. Equation (5),(6), and (7) forces a logical OR, where if either $x_j^k$ or $y_j$ is 1, then it forces $c_j^k$ to be 1, otherwise 0. </p>
+                </section>
+                <section>
+                    <h6>Problem 1 Explanation</h6>
+                    <p class="left_align">Quite a few feasible solutions exist that satisfy the constraints with the objective function of 4 (i.e. number of plants) to achieve 80% of demand coverage by tons. I did not use any LP solvers. Instead, I used a brute force approach with a little bit of preprocessing of data to reduce the solution space. I solved all of my problems using client-side javascript as shown in the log. (Ctrl+Shift+I for Firefox and Chrome) <br><br>
+                    Let $S_i$ be a cluster, $j \in S_i$. There are 10 clusters that share the exactly same coverage characteristics such that $c^k_j = c^k_{j'} \forall k$ where $j'$ and $j$ share the same cluster (e.g., ${j',j \in S_i}$). We would pick no more than 1 customer from each cluster to maximize coverage while minimizing the number of houses. <br>
+                    There also exists a relationship where a customer or cluster strictly dominates coverage of the other customer or a cluster. For example, Cluster 3 strictly dominates Customer 44 (Chandler, AZ) and Cluster 6 (NorCal), since each of customers in Cluster 6 covers all of customers that Cluster 3 or Customer 44 covers and more.</p>
+                    <p id="left" class="left_align">
+                        Cluster 1: [1, 23, 29, 46] (NJ, PA) <br>
+                        Cluster 2: [2, 28, 36, 43] (FL) <br>
+                        Cluster 3: [3, 25, 26, 33, 39] (Los Angeles)<br>
+                        Cluster 4: [5, 6, 16, 17, 34, 41, 49] (TX) <br>
+                        Cluster 5: [7, 24, 50] (Buffalo) <br>
+                    </p>
+                    <p id="right" class="left_align">
+                        Cluster 6: [9, 22, 38, 45] (NorCal) <br>
+                        Cluster 7: [10, 20] (MN) <br>
+                        Cluster 8: [13, 47] (NY, CT) <br>
+                        Cluster 9: [15, 37] (Portland) <br>
+                        Cluster 10: [21, 42] (MA, NH)<br>
+                    </p>
+                </section>
+                <section>
+                    <h6>Problem 2 Formulation</h6>
+                    <p style="font-size: 30px" class="left_align">Since we must fulfill all demand and individual revenue is fixed regardless of the source, the total revenue is fixed at <span id="baseline_revenue"></span> and production cost is fixed at <span id="raw_product_cost"></span> <br>
+                        Thus, we maximize profit by minimizing the variable costs, such as overtime hours, transportation cost, upgrade cost, and setup cost. <br>
+                        Let $t_{ijq}^k$: Transport cost from plant $i$ to customer $j$ for product $k$ in quarter $q$ <br>
+                        $s_i$: Days spent setup for plant $i$ <br>
+                        $u_i$: Indicator variable for upgrade of plant $i$, $u_i \in \{0,1\}$ <br>
+                        $r_{iq}^k$: Regular working-hour production for product $k$ at plant $i$ for quarter $q$ in tons<br>
+                        $o_{iq}^k$: Overtime production for product $k$ at plant $i$ for quarter $q$ in tons<br>
+                        $x_{ijq}^k$: Product $k$ demand fulfilled by plant $i$ for customer $j$ in quarter $q$ <br>
+                        $C_{i}^{k}$: Annual Capacity for plant $i$ to produce product $k$ <br>
+                    </p>
+                </section>
+                <section>
+                    <p style="font-size: 20px" class="left_align">
+                        \begin{equation}\min \sum_{k}^{5}\sum_{i}^{4}\sum_{j}^{50}\sum_q^4 t_{ijq}^k + 5000s_i + 10000000u_i + (6-k)100r_{iq}^k+(6-k)150o_{iq}^k \tag{1}\end{equation}
+                        $$s.t. \quad t_{ijq}^k = 2 \lceil{}x_{ijq}^k / 10\rceil{} d_{ij} \quad \forall i,j,k,q \tag{2}$$
+                        $$\sum_{i} x_{ijq}^k \geq D_{j}^k / 4, \quad \forall j, k, q \tag{3}$$
+                        $$\sum_k \sum_j x_{ijq}^k \leq (\sum_{k}r_{iq}^k + \sum_{k}o_{iq}^k), \quad \forall q, i \tag{4}$$
+                        $$\sum_k r_{iq}^k \leq 720, \quad \forall i, q \tag{5}$$
+                        $$\sum_k o_{iq}^k \leq 360, \quad \forall i, q \tag{6}$$
+                        $$\sum_k \sum_j \sum_q x_{ijq}^k \le C_i^k, \quad \forall i, k \tag{7}$$
+                        $$(1-u_i)(\sum_k^{k \neq i} x^k_{ijq}) \leq 0, \quad \forall j, q, \quad i \in {1,2,3}\tag{8}$$
+                        $$(1-u_4)(\sum_k^{k \leq 3} x^k_{ijq}) \leq 0, \forall j, q \tag{9}$$
+                    </p>
+                </section>
+                <section>
+                    <h6>Problem 2 Explanation</h6>
+                    <p style="font-size: 30px" class="left_align">
+                    The previous formulation is not quite complete, as it doesn't account for plant setup transition in the constraints. Equation (1) does capture all of variable costs in scenario 2, transportation cost, setup cost, upgrade cost, and production cost. Equation (2) defines transportation cost. Equation (3) requires all plants to meet the quarterly demand for every product and customer each quarter. Equation (4)-(6) sets an upper bound on production for each quarter based on production capability. Equation (7) sets an upperbound on production for each plant and product due to annual capacity. Equation (8) and (9) forces the plants to produce its original products unless upgraded. 
+                    </p>
+                </section>
+                <section>
+                    <h6>Closing Thoughts</h6>
+                    <p class="left_align">
+                    </p>
+                </section>
 
             </div>
         </div>
@@ -91,6 +229,10 @@
         <script src="js/d3.tip.js"></script>
         <script src="js/lodash.min.js"></script>
         <script src="js/math.min.js"></script>
+
+        <!-- REVEAL TO D3 -->
+        <script src="js/reveal-to-d3.conf.js"></script>
+        <script src="js/reveal-to-d3.js"></script>
 
         <!--Load Data  -->
         <script src="data/demand.js"></script>
@@ -109,11 +251,15 @@
 
             // More info https://github.com/hakimel/reveal.js#configuration
             Reveal.initialize({
-                controls: true,
-                progress: true,
+                controls: false,
+                // progress: false,
                 history: true,
                 center: true,
-
+                width: 1920,
+                height: 1080,
+                margin: 0,
+                minScale: 0.2,
+                maxScale: 4,
                 transition: 'slide', // none/fade/slide/convex/concave/zoom
 
                 // More info https://github.com/hakimel/reveal.js#dependencies
@@ -125,6 +271,7 @@
                     { src: 'plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } },
                     { src: 'plugin/zoom-js/zoom.js', async: true },
                     { src: 'plugin/notes/notes.js', async: true },
+                    { src: 'plugin/math/math.js', async: true },
                 ]
             });
         </script>
