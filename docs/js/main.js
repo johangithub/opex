@@ -181,6 +181,8 @@ class Plant {
         this.current_product = this.plant_id
         this.production_rate = this.plant_id == 1 ? 100 : 50
         this.inventory = [0,0,0,0,0]
+        this.total_production = 0
+        this.total_setup = 0
         this.reset_quarterly()
     }
     get customers_within_500(){
@@ -190,7 +192,12 @@ class Plant {
         return (6-this.current_product)*100
     }
     get utilization_rate(){
+        this.total_production += this.quarterly_production
+        this.total_setup += this.setup_cost
         return d3.format(".2%")(this.quarterly_production / (this.production_rate * 8 * (90 - (this.setup_cost/5000) )))
+    }
+    get total_utilization_rate(){
+        return d3.format(".2%")(this.total_production / (this.production_rate * 8 * (360 - (this.setup_cost/5000) )))
     }
     reset_quarterly(){
         this.revenue = 0
@@ -436,119 +443,6 @@ for (let scenario of scenarios){
         Setup Cost: ${formatNum(scenario.setup_cost)} 
         Upgrade Cost: ${formatNum(scenario.upgrade_cost)}`)
 }
-
-    // var text = d3.select("#summary")
-    //              .append("div")
-    //              .selectAll(".summary")
-    //              .data([1,2,3,4,5])
-
-    // text.enter()
-    //     .append("text")
-    //     .attr("class", "summary")
-    //     .attr("dy", d=>d)
-    //     .attr("x", 0)
-    //     .html(function(product_id){
-    //         return '<span style="font-size: 14px">Product '+ product_id+ 
-    //             ' / Total Q Demand: '+total_demand(product_id) / 4 +
-    //              ' / 500-mile Coverage: '+d3.format(".2%")(coverage_500[product_id-1]) + ' / With warehouses: '+d3.format(".2%")(data.after_warehouse_percent[product_id-1])+
-    //              '</span><br>'
-    //     })
-
-
-    // var svg2 = d3.select("body").append("svg"),
-    //       margin = {top: 20, right: 20, bottom: 30, left: 70},
-    //       width2 = svgWidth - margin.left - margin.right,
-    //       height2 = 1000 - margin.top - margin.bottom
-    // svg2.attr("width", width2)
-    //     .attr("height", height2)
-
-    // projection = d3.geoAlbers()
-    //                    .translate([width2/2, height2/2])
-    //                    .scale([1500])
-    // var path = d3.geoPath(projection)
-
-    // x2 = d3.scaleLinear().rangeRound([0+100, width2 - 100])
-    // y2 = d3.scaleLinear().rangeRound([height2 - 100, 0+100])
-
-    // x2.domain(d3.extent(data.customers.map(d=>d.long)))
-    // y2.domain(d3.extent(data.customers.map(d=>d.lat)))
-    
-    // var tip_circle = d3.tip().attr("class", "d3-tip").html(
-    //     function(d){
-    //     return `Customer ${d.customer_id} <br>
-    //             ${d.city} ${d.state} <br>
-    //             Product 1: ${d3.format(".2f")(_.find(data.demand, v=>v.customer_id==d.customer_id && v.product_id == 1).demand)} <br>
-    //             Product 2: ${d3.format(".2f")(_.find(data.demand, v=>v.customer_id==d.customer_id && v.product_id == 2).demand)} <br>
-    //             Product 3: ${d3.format(".2f")(_.find(data.demand, v=>v.customer_id==d.customer_id && v.product_id == 3).demand)} <br>
-    //             Product 4: ${d3.format(".2f")(_.find(data.demand, v=>v.customer_id==d.customer_id && v.product_id == 4).demand)} <br>
-    //             Product 5: ${d3.format(".2f")(_.find(data.demand, v=>v.customer_id==d.customer_id && v.product_id == 5).demand)} <br>
-    //             Plant 1: ${d3.format(".2f")(_.find(data.dist_p2c, v=>v.customer_id==d.customer_id && v.plant_id == 1).dist)} <br>
-    //             Plant 2: ${d3.format(".2f")(_.find(data.dist_p2c, v=>v.customer_id==d.customer_id && v.plant_id == 2).dist)} <br>
-    //             Plant 3: ${d3.format(".2f")(_.find(data.dist_p2c, v=>v.customer_id==d.customer_id && v.plant_id == 3).dist)} <br>
-    //             Plant 4: ${d3.format(".2f")(_.find(data.dist_p2c, v=>v.customer_id==d.customer_id && v.plant_id == 4).dist)} <br>
-    //             `
-    //     })
-    // // d3.json("us-states.json", (error, json)=>{
-    // //     if (error) throw error
-    // //     svg2.selectAll("path")
-    // //         .data(json.features).enter()
-    // //         .append("path")
-    // //         .attr("d", path)
-    // //         .style("stroke", "#fff")
-    // //         .style("stroke-width", "1")
-    // //         .style("opacity", 0.3)
-
-    // //     svg2.selectAll("circle")
-    // //         .data(data.customers)
-    // //         .enter()
-    // //         .append("circle")
-    // //         .attr("cx", function(d){return projection([d.long, d.lat])[0]})
-    // //         .attr("cy", function(d){return projection([d.long, d.lat])[1]})
-    // //         .attr("r", 3)
-    // //         .style("fill", "steelblue")
-    // //         .attr("id", d=>"circle_"+d.customer_id)
-    // //         .on('mouseover', tip_circle.show)
-    // //         .on('mouseout', tip_circle.hide)
-
-    // //     svg2.selectAll("text.plant")
-    // //         .data(data.plants)
-    // //         .enter()
-    // //         .append("text")
-    // //         .attr("class", "plant")
-    // //         .attr("x", function(d){return projection([d.long, d.lat])[0]})
-    // //         .attr("y", function(d){return projection([d.long, d.lat])[1]})
-    // //         .text(function(d){return d.plant_id})
-    // //         .style("cursor", "default")
-    // //         .style("font-size", "10px")
-
-    // //     svg2.call(tip_circle)
-    // //     svg2.selectAll("text.cluster")
-    // //         .data(data.clusters)
-    // //         .enter()
-    // //         .append("text")
-    // //         .attr("class", "cluster")
-    // //         .attr("x", 0)
-    // //         .attr("y", (d,i)=>i*50+200)
-    // //         .text((d,i)=>"Cluster "+(i+1))
-    // //         .style("cursor", "pointer")
-    // //         .on("mouseover",d=> identifyClusters(d))
-    // //         .on("mouseout", clearAll)
-
-    // //     function identifyClusters(d){
-    // //         d.forEach(i =>{
-    // //             d3.selectAll("#circle_"+i)
-    // //               .style("fill", "brown")
-    // //               .attr("r", 10)
-    // //               .attr("opacity", 0.5)
-    // //         })
-    // //     }
-    // //     function clearAll(){
-    // //         d3.selectAll("circle")
-    // //             .style("fill", "steelblue")
-    // //             .attr("r", 3)
-    // //             .attr("opacity", 1)
-    // //     }
-    // // })
 
 function demand_covered(){
     var dist_set = []
@@ -872,6 +766,16 @@ function hydrate_slides(){
     d3.select("#profit_diff").html(d3.format("+^$.5s")(data.upgrade_123.profit-data.baseline.profit))
 
     d3.select("#raw_product_cost").html("$"+formatNum(_.sum(data.demand.map(d=>(6-d.product_id)*100*d.demand))))
+
+    d3.select("#baseline_utilization_1").html(scenarios[0].plants[0].total_utilization_rate)
+    d3.select("#baseline_utilization_2").html(scenarios[0].plants[1].total_utilization_rate)
+    d3.select("#baseline_utilization_3").html(scenarios[0].plants[2].total_utilization_rate)
+    d3.select("#baseline_utilization_4").html(scenarios[0].plants[3].total_utilization_rate)
+
+    d3.select("#upgrade_utilization_1").html(scenarios[1].plants[0].total_utilization_rate)
+    d3.select("#upgrade_utilization_2").html(scenarios[1].plants[1].total_utilization_rate)
+    d3.select("#upgrade_utilization_3").html(scenarios[1].plants[2].total_utilization_rate)
+    d3.select("#upgrade_utilization_4").html(scenarios[1].plants[3].total_utilization_rate)
 }
 hydrate_slides()
 
