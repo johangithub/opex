@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<html>
+<head>
+    <title>Locations</title>
+</head>
+<style type="text/css">
+    .bar:hover{
+        fill: brown;
+    }
+    .d3-tip {
+      line-height: 1;
+      font-weight: bold;
+      font-family: Lucida Grande, Lucida Sans Unicode, Lucida Sans, Geneva, Verdana, sans-serif;
+      padding: 12px;
+      background: rgba(0, 0, 0, 0.8);
+      color: #fff;
+      border-radius: 2px;
+      pointer-events: none;
+    }
+    text{
+        font-family: Lucida Grande, Lucida Sans Unicode, Lucida Sans, Geneva, Verdana, sans-serif;
+    }
+</style>
+<script src="js/d3.v4.min.js"></script>
+<script src="js/d3.tip.js"></script>
+<script src="js/lodash.min.js"></script>
+<body>
+
+<script type="text/javascript">
+var q = d3.queue()
+.defer(d3.csv, "data/demand.csv")
+.defer(d3.csv, "data/customers.csv")
+.defer(d3.csv, "data/plants.csv")
+.defer(d3.csv, "data/dist_p2c.csv")
+.defer(d3.csv, "data/dist_c2c.csv")
+.await(ready)
+
+var data = {}
+function ready(error, demand_input, customers_input, plants_input, dist_p2c, dist_c2c){
+    demand_input.forEach(d=>{
+    d.product_id = +d.product_id
+    d.customer_id = +d.customer_id
+    d.demand = +d.demand
+    d.revenue = +d.revenue
+})
+customers_input.forEach(d=>{
+    d.customer_id = +d.customer_id
+
+})
+plants_input.forEach(d=>{
+    d.plant_id = +d.plant_id
+})
+dist_p2c.forEach(d=>{
+    d.plant_id = +d.plant_id
+    d.customer_id = +d.customer_id
+    d.dist = +d.dist
+})
+data.demand = demand_input
+data.customers = customers_input
+data.plants = plants_input
+data.dist_p2c = dist_p2c
+data.dist_c2c = dist_c2c
+
+function demand_covered(){
+    var dist_set = []
+    for (let customer of data.customers){
+        var temp = data.dist_c2c.filter(d=>d.dist <= 500 && d.customer_from == customer.customer_id).map(d=>d.customer_to)
+        dist_set.push(temp)
+    }
+    //Find clusters that share the same coverage
+    var clusters = []
+    same_list = new Set()
+    for (let i=0;i<49;i++){
+        for (let j=i+1;j<50;j++){
+            if ((_.isEqual(_.intersection(dist_set[i],dist_set[j]),dist_set[i])) || (_.isEqual(_.intersection(dist_set[i],dist_set[j]), dist_set[j]))){
+                if (_.isEqual(dist_set[i], dist_set[j])){
+                    if (same_list.has(i+1)){
+                        var ind = clusters.findIndex(d=>d.has(i+1))
+                        clusters[ind].add(j+1)
+                    } else if (same_list.has(j+1)){
+                        var ind = clusters.findIndex(d=>d.has(j+1))
+                        clusters[ind].add(i+1)
+
+                    //Never seen
+                    } else {
+                        clusters.push(new Set([i+1, j+1]))
+                    }
+                    same_list.add(i+1)
+                    same_list.add(j+1)
+                }
+            }
+        }
+    }
+    return clusters
+}
+data.clusters = demand_covered()
+
+    var svgWidth = 1400
+    var svg = d3.select("body").append("svg"),
+          margin = {top: 20, right: 20, bottom: 30, left: 70},
+          width = svgWidth - margin.left - margin.right,
+          height = 1000 - margin.top - margin.bottom
+    svg.attr("width", width)
+        .attr("height", height)
+
+    projection = d3.geoAlbers()
+                       .translate([width/2, height/2])
+                       .scale([1500])
+    var path = d3.geoPath(projection)
+
+    x2 = d3.scaleLinear().rangeRound([0+100, width - 100])
+    y2 = d3.scaleLinear().rangeRound([height - 100, 0+100])
+
+    x2.domain(d3.extent(data.customers.map(d=>d.long)))
+    y2.domain(d3.extent(data.customers.map(d=>d.lat)))
+    
+    var tip_circle = d3.tip().attr("class", "d3-tip").html(
+        function(d){
+          var d =_.find(data.customers, v=>v.customer_id ==d.label)
+        return `Customer ${d.customer_id} <br>
+                ${d.city} ${d.state} <br>
+                Product 1: ${d3.format(".2f")(_.find(data.demand, v=>v.customer_id==d.customer_id && v.product_id == 1).demand)} <br>
+                Product 2: ${d3.format(".2f")(_.find(data.demand, v=>v.customer_id==d.customer_id && v.product_id == 2).demand)} <br>
+                Product 3: ${d3.format(".2f")(_.find(data.demand, v=>v.customer_id==d.customer_id && v.product_id == 3).demand)} <br>
+                Product 4: ${d3.format(".2f")(_.find(data.demand, v=>v.customer_id==d.customer_id && v.product_id == 4).demand)} <br>
+                Product 5: ${d3.format(".2f")(_.find(data.demand, v=>v.customer_id==d.customer_id && v.product_id == 5).demand)} <br>
+                Plant 1: ${d3.format(".2f")(_.find(data.dist_p2c, v=>v.customer_id==d.customer_id && v.plant_id == 1).dist)} <br>
+                Plant 2: ${d3.format(".2f")(_.find(data.dist_p2c, v=>v.customer_id==d.customer_id && v.plant_id == 2).dist)} <br>
+                Plant 3: ${d3.format(".2f")(_.find(data.dist_p2c, v=>v.customer_id==d.customer_id && v.plant_id == 3).dist)} <br>
+                Plant 4: ${d3.format(".2f")(_.find(data.dist_p2c, v=>v.customer_id==d.customer_id && v.plant_id == 4).dist)} <br>
+                `
+        })
+
+    d3.json("data/us-states.json", (error, json)=>{
+        if (error) throw error
+        svg.selectAll("path")
+            .data(json.features).enter()
+            .append("path")
+            .attr("d", path)
+            .style("stroke", "#fff")
+            .style("stroke-width", "1")
+            .style("opacity", 0.3)
+
+        svg.selectAll("text.plant")
+            .data(data.plants)
+            .enter()
+            .append("text")
+            .attr("class", "plant")
+            .attr("x", function(d){return projection([d.long, d.lat])[0]})
+            .attr("y", function(d){return projection([d.long, d.lat])[1]})
+            .text(function(d){return d.plant_id})
+            .style("cursor", "default")
+            .style("font-size", "13px")
+
+        svg.call(tip_circle)
+
+        svg.selectAll("text.cluster")
+            .data(data.clusters)
+            .enter()
+            .append("text")
+            .attr("class", "cluster")
+            .attr("x", 0)
+            .attr("y", (d,i)=>i*50+200)
+            .text((d,i)=>"Cluster "+(i+1))
+            .style("cursor", "pointer")
+            .on("mouseover",d=> identifyClusters(d))
+            .on("mouseout", clearAll)
+
+        svg.selectAll("text.warehouse")
+           .data([5,8,31,39])
+           .enter()
+           .append("text")
+           .attr("class", "warehouse")
+           .attr("x", 0)
+           .attr("y", (d,i) => i*50 + 700)
+           .text((d,i) => "Warehouse at "+d)
+           .style("cursor", "pointer")
+           .on("mouseover", d=>identifyWarehouse(d))
+           .on("mouseout", clearAll)
+
+
+        function identifyClusters(d){
+            d.forEach(i =>{
+                d3.selectAll("#customer_"+i)
+                  .style("fill", "brown")
+                  .style("font-size", "20px")
+            })
+        }
+        function identifyWarehouse(d){
+          d3.selectAll("#customer_"+d)
+            .style("fill", "yellow")
+            .style("font-size", "20px");
+          var covered_warehouses = []
+          if (d==5){
+            covered_warehouses = [6, 16, 17, 18, 30, 34, 41, 48, 49]            
+          } else if (d==8){
+            covered_warehouses = [12, 15, 35, 37, 40]
+          } else if (d==31){
+            covered_warehouses = [1, 3, 7, 13, 19, 23, 24, 27, 29, 46, 47, 50]
+          } else if (d==39){
+            covered_warehouses = [4, 9, 12, 22, 25, 26, 33, 38, 44, 45]
+          }
+          covered_warehouses.forEach(customer_id=>{
+            d3.selectAll("#customer_"+customer_id)
+              .style("fill", "brown")
+              .style("font-size", "20px")
+          });
+        }
+        function clearAll(){
+            d3.selectAll(".customers")
+                .style("fill", "steelblue")
+                .style("font-size", "10px")
+        }
+        
+        // Place and label location
+               var foci = [],
+                   labels = [];
+
+               // Store the projected coordinates of the places for the foci and the labels
+               data.customers.forEach(function(d, i) {
+                   var c = projection([d.long, d.lat])
+                   foci.push({x: c[0], y: c[1]});
+                   labels.push({x: c[0], y: c[1], label: d.customer_id})
+               });
+
+               // Create the force layout with a slightly weak charge
+               var simulation = d3.forceSimulation()
+                .force("center", d3.forceCenter(width / 2, height / 2))
+                .force("charge", d3.forceManyBody().strength(-5))
+                .nodes(labels)
+
+               // Append the place labels, setting their initial positions to
+               // the feature's centroid
+               var placeLabels = svg.selectAll('.customers')
+                   .data(labels)
+                   .enter()
+                   .append('text')
+                   .attr('class', 'customers')
+                   .attr('id', d=>'customer_'+d.label)
+                   .attr("cursor", "pointer")
+                   .attr('x', function(d) { return d.x; })
+                   .attr('y', function(d) { return d.y; })
+                   .attr("font-size", "10px")
+                   .attr('text-anchor', 'middle')
+                   .attr("fill", "steelblue")
+                   .text(function(d) { return d.label; })
+                   .on('mouseover', tip_circle.show)
+                   .on('mouseout', tip_circle.hide)
+
+               simulation.on("tick", function() {
+                   var k = .1 * simulation.alpha();
+                   labels.forEach(function(o, j) {
+                       // The change in the position is proportional to the distance
+                       // between the label and the corresponding place (foci)
+                       o.y += (foci[j].y - o.y) * k;
+                       o.x += (foci[j].x - o.x) * k;
+                   });
+
+                   // Update the position of the text element
+                   svg.selectAll("text.customers")
+                       .attr("x", function(d) { return d.x; })
+                       .attr("y", function(d) { return d.y; });
+               });
+    })
+   
+}
+</script>
+</body>
+</html>
