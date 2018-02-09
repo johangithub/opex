@@ -56,15 +56,13 @@ function ready(error, demand_input, customers_input){
         var width = svgWidth - margin.left - margin.right
         var height = svgHeight - margin.top - margin.bottom
 
-
-
         var select = d3.select("body").append("select")
                        .attr("id", "product")
                        .style("top", "10px")
                        .on("change", updateBar)
 
         select.selectAll("option")
-            .data(['1','2','3','4','5']).enter()
+            .data(['Product 1','Product 2','Product 3','Product 4','Product 5']).enter()
             .append("option")
             .text(d => d)
 
@@ -89,7 +87,7 @@ function ready(error, demand_input, customers_input){
             if (checkedValue =='customer_id'){
                 x.domain(_.range(1,51))
             } else if (checkedValue == 'demand'){
-                var product_id =  d3.select("#product").property("value")
+                var product_id =  d3.select("#product").property("value").slice(-1)
                     x.domain(data.demand.sort((a,b) => a.demand < b.demand).filter(d => d.product_id==product_id).map(d => d.customer_id))
             }
             updateBar()   
@@ -150,7 +148,7 @@ function ready(error, demand_input, customers_input){
             return 'steelblue'
         }
         function updateBar(){
-            var product_id = d3.select("#product").property("value")
+            var product_id = d3.select("#product").property("value").slice(-1)
             var barchartData = data.demand.filter(d=>{return d.product_id==product_id})
             y.domain([0, d3.max(barchartData.map(d=>d.demand))])
             var t = d3.transition().duration(500)
