@@ -725,7 +725,7 @@ function best_cycling_products(start_product, possible_products){
 // best_cycling_products(3,[1,2,3])
 
 //Fill out the slides
-function hydrate_slides(){
+(function hydrate_slides(){
     d3.select("#no_warehouse_transport_cost").html("$"+formatNum(data.no_warehouse_transport_cost))
     d3.select("#warehouse_transport_cost").html("$"+formatNum(data.warehouse_transport_cost))
     d3.select("#cost_difference").html("$"+formatNum(data.warehouse_transport_cost-data.no_warehouse_transport_cost))
@@ -776,8 +776,7 @@ function hydrate_slides(){
     d3.select("#upgrade_utilization_2").html(scenarios[1].plants[1].total_utilization_rate)
     d3.select("#upgrade_utilization_3").html(scenarios[1].plants[2].total_utilization_rate)
     d3.select("#upgrade_utilization_4").html(scenarios[1].plants[3].total_utilization_rate)
-}
-hydrate_slides()
+})()
 
 function preprocessing(){     
     dist_p2c.forEach(d=>{
