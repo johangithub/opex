@@ -29,8 +29,8 @@ function ready(error, data, unemployment){
         // translates a linear scale of colors between two numbers into two different colors
 
         var color =  d3.scaleSequential()
-        .domain([1.0,10.0])
-        .interpolator(d3.interpolateInferno);
+        .domain([1.0,7.0])
+        .interpolator(d3.interpolateBlues)
 
         // Add Sort bars
         var radio = d3.select("body")
