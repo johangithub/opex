@@ -1,8 +1,8 @@
 
 // Set the dimensions and margins of the diagram
 var margin = {top: 20, right: 90, bottom: 30, left: 90},
-    width = 960 - margin.left - margin.right,
-    height = 1200 - margin.top - margin.bottom;
+    width = 1400 - margin.left - margin.right,
+    height = 960 - margin.top - margin.bottom;
 
 // append the svg object to the body of the page
 // appends a 'group' element to 'svg'
@@ -17,6 +17,16 @@ var svg = d3.select("body").append("svg")
 var i = 0,
     duration = 750,
     root;
+
+// Define the tooltip for mouseover the bar
+var tip = d3.tip()
+  .attr('class', 'd3-tip')
+  .html(function(d) {
+    return d.data.name+': ' + d3.format(".3s")(sumPop(d))
+    })
+
+// Now that tooltip is defined, let's call it
+svg.call(tip)
 
 // declares a tree layout and assigns the size
 var treemap = d3.tree().size([height, width]);
@@ -37,7 +47,6 @@ var treeData =
     ]
   }
 d3.csv("data/data.csv", states=>{
-  // console.table(states)
   var unique_states =_.uniqBy(states, d=>d.state_name).map(d=> Object({"name": d.state_name}))
   unique_states.map(state=>{
     state.children = states.filter(d=>d.state_name == state.name).map(d=> Object({"name": d.county_name, "pop": d.pop}))
@@ -51,8 +60,6 @@ d3.csv("data/data.csv", states=>{
   treeData.children[6].children = unique_states.filter(d=>['Colorado', 'Idaho', 'Montana', 'Utah', 'Wyoming'].indexOf(d.name) >= 0)
   treeData.children[7].children = unique_states.filter(d=>['Alaska', 'California', 'Hawaii', 'Nevada', 'Oregon', 'Washington'].indexOf(d.name) >= 0)
 
-
-  console.table(unique_states)
   // treeData.children = unique_states
 
 // Assigns parent, children, height, depth
@@ -117,7 +124,9 @@ function update(source) {
       .attr("text-anchor", function(d) {
           return d.children || d._children ? "end" : "start";
       })
-      .text(function(d) { return d.data.name; });
+      .text(function(d) { return d.data.name; })
+      .on('mouseover', tip.show)
+      .on('mouseout', tip.hide)
 
   // UPDATE
   var nodeUpdate = nodeEnter.merge(node);
@@ -213,5 +222,19 @@ function update(source) {
       }
     update(d);
   }
+
+
 }
 })
+
+  function sumPop(d){
+    var temp = 0
+    if (d.data.pop) temp += +d.data.pop
+    if (d.children){
+        temp += d3.sum(d.children, d=>sumPop(d))
+    }
+    if (d._children){
+        temp += d3.sum(d._children, d=>sumPop(d))
+    }
+    return temp
+  }

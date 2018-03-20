@@ -6,7 +6,32 @@ d3.csv("data/data.csv", data => {
   data.forEach(d=>{
     d.state = state_name[d.state_name]
     d.pop = +d.pop
+if (['Connecticut', 'Maine', 'Massachusetts', 'New Hampshire', 'Rhode Island', 'Vermont'].indexOf(d.state_name) >= 0){
+    d.region = "New England"
+}
+else if (['Delaware', 'District of Columbia', 'Maryland', 'New Jersey', 'New York', 'Pennsylvania'].indexOf(d.state_name) >= 0){
+    d.region = "Mideast"
+}
+else if (['Illinois', 'Indiana', 'Michigan', 'Ohio', 'Wisconsin'].indexOf(d.state_name) >= 0){
+    d.region = "Great Lakes"
+}
+else if (['Iowa', 'Kansas', 'Minnesota', 'Missouri', 'Nebraska', 'North Dakota', 'South Dakota'].indexOf(d.state_name) >= 0){
+    d.region = "Plains"
+}
+else if (['Alabama', 'Arkansas', 'Florida', 'Georgia', 'Kentucky', 'Louisiana', 'Mississippi', 'North Carolina', 'South Carolina', 'Tennessee', 'Virginia', 'West Virginia'].indexOf(d.state_name) >= 0){
+    d.region = "Southeast"
+}
+else if (['Arizona', 'New Mexico', 'Oklahoma', 'Texas'].indexOf(d.state_name) >= 0){
+    d.region = "Southwest"
+}
+else if (['Colorado', 'Idaho', 'Montana', 'Utah', 'Wyoming'].indexOf(d.state_name) >= 0){
+    d.region = "Rocky Mountain"
+}
+else if (['Alaska', 'California', 'Hawaii', 'Nevada', 'Oregon', 'Washington'].indexOf(d.state_name) >= 0){
+    d.region = "Far West"
+}
   })
+
   d3.json("data/us-states.json", statesJson => {
 
   // Run the data through crossfilter and load our 'facts'
@@ -77,7 +102,7 @@ d3.csv("data/data.csv", data => {
 var row2Height = 300
 row2Charts = {}
   // States
-   d3.select("#row1").append("div")
+   d3.select("#row2").append("div")
     .attr("id", 'dc-states-chart')
     .append("h4")
     .text("States")
@@ -94,8 +119,8 @@ row2Charts = {}
     }
     row2Charts['state']['group'] = row2Charts['state'].dim.group().reduceSum(d=>d.pop)
 
-  // TIS Bar Graph Counted
-  row2Charts['state'].chart.width(width)
+  row2Charts['state'].chart
+    .width(width*.8)
     .height(row2Height)
     .margins({top: 10, right: 10, bottom: 100, left: 80})
     .dimension(row2Charts['state'].dim)
@@ -106,6 +131,34 @@ row2Charts = {}
     .brushOn(false)
     .gap(5)  // 65 = norm
     .elasticY(true)
+
+    d3.select("#row2").append("div")
+     .attr("id", 'dc-region-chart')
+     .append("h4")
+     .text("Region")
+     .append("span")
+     .append("a")
+     .attr("class","reset")
+     .style("display", "none")
+     .attr("href", `javascript:row2Charts['region'].chart.filterAll();dc.redrawAll();`)
+     .text(" reset")
+
+    row2Charts['region'] = {
+      chart: dc.rowChart("#dc-region-chart"),
+      dim: facts.dimension(d => d.region)
+    }
+    row2Charts['region']['group'] = row2Charts['region'].dim.group().reduceSum(d=>d.pop)
+
+    row2Charts['region'].chart
+    .width(width*.2)
+    .height(row2Height)
+    .margins({top: 10, right: 10, bottom: 40, left: 10})
+    .dimension(row2Charts['region'].dim)
+    .group(row2Charts['region'].group)
+    .colors(d3.scale.category10())
+    .title(function(d){return d.key + ': ' + d3.format('.3s')(d.value)})
+    .elasticX(true)
+    .xAxis().ticks(3)
 
   var headers = [{name: 'State',var_name: 'state_name', width: 100},
   {name: 'County',var_name: 'county_name', width: 300},
