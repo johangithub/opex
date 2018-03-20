@@ -24,7 +24,7 @@ pointer-events: all;
 }
 
 .bar:hover {
-fill: yellow;
+fill: brown;
 }
 
 .axis--x text{
